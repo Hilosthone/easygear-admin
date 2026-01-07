@@ -43,7 +43,7 @@ export default function AdminSettingsPage() {
       {/* Terminal Header */}
       <div className='flex flex-col md:flex-row justify-between items-start md:items-end gap-6'>
         <div>
-          <h1 className='text-6xl font-black text-brand-slate tracking-tighter italic uppercase leading-none'>
+          <h1 className='text-4xl font-black text-brand-slate tracking-tighter italic uppercase leading-none'>
             Core Terminal
           </h1>
           <p className='text-slate-400 font-black mt-3 uppercase text-[10px] tracking-[0.5em] flex items-center gap-3'>
