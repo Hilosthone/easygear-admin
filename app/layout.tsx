@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'easyGear Terminal',
   description: 'Admin & Vendor Management System',
-  // This adds the logo to your browser tab and device bookmarks
+  // Browser tab and device bookmark icons
   icons: {
     icon: '/easyGearlogo_Black.png',
     apple: '/easyGearlogo_Black.png',
@@ -18,8 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang='en' className='scroll-smooth'>
-      <body className='antialiased bg-zinc-50 text-brand-slate'>
-        {children}
+      <body className='antialiased bg-zinc-50 text-brand-slate selection:bg-brand-blue selection:text-white'>
+        {/* Main Content Area */}
+        <main className='min-h-screen'>{children}</main>
       </body>
     </html>
   )
