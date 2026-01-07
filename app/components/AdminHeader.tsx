@@ -12,6 +12,8 @@ import {
   LogOut,
   ChevronDown,
   ShieldCheck,
+  Activity,
+  Cpu,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import SearchOverlay from './SearchOverlay'
@@ -25,13 +27,21 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
   const [adminName, setAdminName] = useState('Admin')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  // Sync scroll state for glassmorphism effect
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     const name = localStorage.getItem('user_name')
     if (name) setAdminName(name)
   }, [])
 
-  // CMD+K Shortcut
+  // CMD+K Shortcut Logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -45,114 +55,149 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
 
   return (
     <>
-      <header className='sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b border-zinc-200/60'>
-        <div className='flex h-20 items-center justify-between px-4 sm:px-6 lg:px-10 gap-4'>
-          {/* LEFT: Menu & Branding (Visible on all) */}
-          <div className='flex items-center gap-2 sm:gap-4 shrink-0'>
+      <header
+        className={cn(
+          'sticky top-0 z-60 w-full transition-all duration-300 border-b border-transparent',
+          scrolled
+            ? 'bg-white/80 backdrop-blur-2xl border-zinc-200/60 py-2'
+            : 'bg-transparent py-4'
+        )}
+      >
+        <div className='flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10 gap-4 max-w-400 mx-auto'>
+          {/* LEFT: Branding & Toggle */}
+          <div className='flex items-center gap-4 shrink-0'>
             <button
               onClick={() => setIsOpen(true)}
-              className='p-2.5 hover:bg-zinc-100 rounded-2xl lg:hidden text-zinc-500 active:scale-95 transition-all'
+              className='p-3 hover:bg-zinc-100 rounded-2xl lg:hidden text-zinc-500 active:scale-95 transition-all border border-transparent hover:border-zinc-200'
             >
-              <Menu size={22} strokeWidth={2.5} />
+              <Menu size={20} strokeWidth={3} />
             </button>
 
-            <div className='hidden sm:flex flex-col shrink-0'>
-              <h1 className='text-sm font-black text-brand-slate tracking-tight'>
-                Terminal <span className='text-brand-blue'>v1.0</span>
-              </h1>
+            <div className='hidden sm:flex items-center gap-3'>
+              <div className='bg-brand-slate p-2 rounded-xl'>
+                <Cpu size={16} className='text-brand-blue animate-pulse' />
+              </div>
+              <div className='flex flex-col'>
+                <h1 className='text-[10px] font-black text-brand-slate uppercase tracking-[0.3em] leading-none'>
+                  Terminal <span className='text-brand-blue'>v1.0</span>
+                </h1>
+                <p className='text-[8px] font-bold text-zinc-400 uppercase mt-1'>
+                  Node: Abuja_Main
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* CENTER: Search Bar (Now visible on SM, MD, LG) */}
+          {/* CENTER: Command Search */}
           <div
             onClick={() => setIsSearchOpen(true)}
-            className='flex-1 max-w-xl group cursor-text'
+            className='flex-1 max-w-2xl group cursor-text'
           >
-            <div className='relative w-full'>
+            <div className='relative w-full group'>
               <div className='absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none'>
                 <Search
                   className='text-zinc-400 group-hover:text-brand-blue transition-colors'
-                  size={18}
+                  size={16}
+                  strokeWidth={3}
                 />
               </div>
-              <div className='w-full bg-zinc-100/80 border-2 border-transparent hover:border-zinc-200 rounded-2xl py-2.5 pl-11 pr-4 sm:pr-12 text-xs sm:text-sm font-bold text-zinc-400 flex items-center transition-all overflow-hidden truncate'>
-                <span className='truncate'>Search terminal...</span>
+              <div className='w-full bg-zinc-100/50 border-2 border-transparent group-hover:bg-zinc-100 group-hover:border-zinc-200 rounded-[1.25rem] py-2.5 pl-12 pr-4 sm:pr-12 text-xs font-black text-zinc-400 flex items-center transition-all uppercase tracking-widest'>
+                <span className='truncate'>Invoke Command...</span>
               </div>
-              {/* K Shortcut - Hidden on tiny screens */}
-              <div className='absolute right-3 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 px-1.5 py-1 bg-white border border-zinc-200 rounded-md shadow-sm'>
-                <Command size={10} className='text-zinc-400' />
-                <span className='text-[10px] font-bold text-zinc-400'>K</span>
+
+              {/* Hotkey Indicator */}
+              <div className='absolute right-3 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-1.5 px-2 py-1 bg-white border-2 border-zinc-100 rounded-lg shadow-sm'>
+                <Command
+                  size={10}
+                  strokeWidth={3}
+                  className='text-brand-blue'
+                />
+                <span className='text-[9px] font-black text-brand-slate'>
+                  K
+                </span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: User Profile (Styled for all sizes) */}
-          <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
+          {/* RIGHT: Notifications & Identity */}
+          <div className='flex items-center gap-2 sm:gap-5 shrink-0'>
+            {/* System Notifications */}
+            <button className='relative p-3 text-zinc-400 hover:text-brand-blue transition-colors group hidden xs:block'>
+              <Bell size={20} strokeWidth={2.5} />
+              <span className='absolute top-2.5 right-2.5 w-2 h-2 bg-brand-orange rounded-full border-2 border-white group-hover:scale-125 transition-transform' />
+            </button>
+
+            <div className='h-8 w-0.5 bg-zinc-100 hidden sm:block' />
+
             <div className='relative'>
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className='flex items-center gap-2 p-1 sm:p-1.5 sm:pr-3 hover:bg-zinc-100 rounded-2xl transition-all border border-transparent hover:border-zinc-200 group'
+                className='flex items-center gap-3 p-1 pr-3 hover:bg-white rounded-2xl transition-all border-2 border-transparent hover:border-zinc-100 group'
               >
-                {/* Human Icon Avatar */}
-                <div className='h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-brand-blue flex items-center justify-center text-white shadow-lg shadow-blue-200 transition-transform group-active:scale-90'>
-                  <User
-                    strokeWidth={2.5}
-                    className='w-5 h-5 sm:w-6 sm:h-6' // This is the correct responsive way
-                  />
+                <div className='relative'>
+                  <div className='h-10 w-10 rounded-xl bg-brand-slate flex items-center justify-center text-white shadow-lg transition-transform group-active:scale-95 overflow-hidden'>
+                    <User strokeWidth={2.5} size={20} />
+                  </div>
+                  <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full' />
                 </div>
 
-                {/* Admin Name - Always visible from SM up */}
-                <div className='hidden xs:block text-left max-w-20 sm:max-w-30'>
-                  <p className='text-[11px] sm:text-xs font-black text-brand-slate leading-none truncate'>
+                <div className='hidden md:block text-left'>
+                  <p className='text-xs font-black text-brand-slate leading-none uppercase tracking-tighter'>
                     {adminName}
                   </p>
-                  <p className='text-[8px] sm:text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-1'>
-                    Root
-                  </p>
+                  <div className='flex items-center gap-1 mt-1'>
+                    <Activity size={8} className='text-emerald-500' />
+                    <p className='text-[8px] font-black text-zinc-400 uppercase tracking-widest'>
+                      Level 4 Root
+                    </p>
+                  </div>
                 </div>
+
                 <ChevronDown
                   size={14}
+                  strokeWidth={3}
                   className={cn(
-                    'text-zinc-400 transition-transform hidden sm:block',
-                    isProfileOpen && 'rotate-180'
+                    'text-zinc-300 transition-transform hidden md:block',
+                    isProfileOpen && 'rotate-180 text-brand-blue'
                   )}
                 />
               </button>
 
-              {/* Profile Dropdown */}
+              {/* Profile Dropdown Module */}
               {isProfileOpen && (
-                <div className='absolute right-0 mt-3 w-60 bg-white border border-zinc-200 rounded-4xl shadow-2xl p-2 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200'>
-                  <div className='px-4 py-4 border-b border-zinc-50 mb-2'>
-                    <p className='text-[10px] font-black text-zinc-400 uppercase tracking-widest'>
+                <div className='absolute right-0 mt-4 w-64 bg-white border-4 border-slate-50 rounded-[2.5rem] shadow-2xl p-3 animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 z-70'>
+                  <div className='px-5 py-5 bg-slate-50/50 rounded-3xl mb-2 border border-slate-100'>
+                    <p className='text-[9px] font-black text-brand-blue uppercase tracking-[0.2em] mb-1'>
                       Identity Verified
                     </p>
-                    <p className='text-sm font-black text-brand-slate truncate mt-1'>
+                    <p className='text-sm font-black text-brand-slate truncate uppercase tracking-tighter'>
                       {adminName}
                     </p>
                   </div>
 
-                  <div className='space-y-1'>
-                    <button className='w-full flex items-center gap-3 px-3 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 rounded-2xl transition-colors'>
-                      <ShieldCheck size={18} className='text-brand-blue' />
-                      Admin Security
-                    </button>
-                    <button className='w-full flex items-center gap-3 px-3 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 rounded-2xl transition-colors'>
-                      <Settings size={18} className='text-zinc-400' />
-                      Preferences
-                    </button>
+                  <div className='grid gap-1'>
+                    <DropdownItem
+                      icon={<ShieldCheck size={16} />}
+                      label='Clearance Level'
+                      color='text-brand-blue'
+                    />
+                    <DropdownItem
+                      icon={<Settings size={16} />}
+                      label='Terminal Prefs'
+                    />
                   </div>
 
-                  <div className='h-px bg-zinc-100 my-2 mx-2' />
+                  <div className='h-1 bg-slate-50 my-2 rounded-full mx-2' />
 
                   <button
                     onClick={() => {
                       localStorage.clear()
                       window.location.href = '/login'
                     }}
-                    className='w-full flex items-center gap-3 px-3 py-3 text-xs font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-colors'
+                    className='w-full flex items-center gap-3 px-4 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 rounded-2xl transition-all'
                   >
-                    <LogOut size={18} />
-                    Exit Terminal
+                    <LogOut size={16} strokeWidth={3} />
+                    Disconnect Node
                   </button>
                 </div>
               )}
@@ -166,5 +211,24 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
         onClose={() => setIsSearchOpen(false)}
       />
     </>
+  )
+}
+
+function DropdownItem({
+  icon,
+  label,
+  color = 'text-zinc-400',
+}: {
+  icon: React.ReactNode
+  label: string
+  color?: string
+}) {
+  return (
+    <button className='w-full flex items-center gap-4 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:bg-slate-50 rounded-2xl transition-all group'>
+      <span className={cn('transition-transform group-hover:scale-110', color)}>
+        {icon}
+      </span>
+      {label}
+    </button>
   )
 }

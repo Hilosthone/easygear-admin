@@ -43,7 +43,7 @@ const ADMIN_LINKS = [
   },
   { name: 'Products', href: '/admin/products', icon: Package },
   // Treasury is now handled separately as a dropdown below
-  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3, badgeKey: 'Reports' },
   {
     name: 'Support',
     href: '/admin/support',
@@ -83,7 +83,8 @@ export default function AdminSidebar({
     KYC: 6,
     Orders: 5,
     Payments: 2,
-    Support: 3,
+    Support: 7,
+    Reports: 2,
   }
 
   if (!mounted) return null
