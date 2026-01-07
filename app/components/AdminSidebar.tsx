@@ -9,7 +9,6 @@ import {
   Store,
   ShoppingCart,
   Package,
-  CreditCard,
   BarChart3,
   Ticket,
   Settings,
@@ -42,8 +41,7 @@ const ADMIN_LINKS = [
     badgeKey: 'Orders',
   },
   { name: 'Products', href: '/admin/products', icon: Package },
-  // Treasury is now handled separately as a dropdown below
-  { name: 'Reports', href: '/admin/reports', icon: BarChart3,  },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
   {
     name: 'Support',
     href: '/admin/support',
@@ -61,21 +59,25 @@ export default function AdminSidebar({
   setIsOpen: (v: boolean) => void
 }) {
   const pathname = usePathname()
-  const [adminName, setAdminName] = useState('Admin')
-  const [adminRole, setAdminRole] = useState('Staff')
+  // Initial state reflects a placeholder until useEffect hydrates from localStorage
+  const [adminName, setAdminName] = useState('Loading...')
+  const [adminRole, setAdminRole] = useState('Accessing Node')
   const [mounted, setMounted] = useState(false)
-
-  // State for Dropdown
   const [isTreasuryOpen, setIsTreasuryOpen] = useState(
     pathname.includes('/admin/financials')
   )
 
   useEffect(() => {
     setMounted(true)
+    // Grabbing the name stored during the Sign-Up/Login flow
     const name = localStorage.getItem('user_name')
     const role = localStorage.getItem('user_role')
+
     if (name) setAdminName(name)
+    else setAdminName('Guest Admin') // Fallback if no name found
+
     if (role) setAdminRole(role)
+    else setAdminRole('Staff')
   }, [])
 
   const essentials: Record<string, number> = {
@@ -91,9 +93,10 @@ export default function AdminSidebar({
 
   return (
     <>
+      {/* Mobile Overlay */}
       <div
         className={cn(
-          'fixed inset-0 bg-brand-slate/60 backdrop-blur-sm z-60 lg:hidden',
+          'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 lg:hidden',
           isOpen ? 'block' : 'hidden'
         )}
         onClick={() => setIsOpen(false)}
@@ -101,32 +104,32 @@ export default function AdminSidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-70 w-72 bg-brand-orange text-white flex flex-col transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 border-r border-white/10 shadow-2xl',
+          'fixed inset-y-0 left-0 z-70 w-72 bg-blue-600 text-slate-200 flex flex-col transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 border-r border-blue-500 shadow-2xl',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
+        {/* Logo Section */}
         <div className='p-8 flex items-center justify-between shrink-0'>
           <Link
             href='/admin'
-            className='text-2xl font-black italic tracking-tighter'
+            className='text-2xl font-black italic tracking-tighter text-white'
             onClick={() => setIsOpen(false)}
           >
-            easyGear<span className='text-brand-orange'>.</span>
+            easyGear<span className='text-orange-500'>.</span>
           </Link>
           <button
             onClick={() => setIsOpen(false)}
-            className='lg:hidden p-2 bg-white/10 rounded-xl'
+            className='lg:hidden p-2 bg-blue-700/50 rounded-xl text-white'
           >
             <X size={20} strokeWidth={3} />
           </button>
         </div>
 
-        <nav className='flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar scroll-smooth'>
+        {/* Navigation */}
+        <nav className='flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar scroll-smooth'>
           {ADMIN_LINKS.map((link, index) => {
             const isActive = pathname === link.href
             const badgeCount = link.badgeKey ? essentials[link.badgeKey] : null
-
-            // Insert Treasury Dropdown after Products (index 5)
             const showTreasuryAfter = index === 5
 
             return (
@@ -135,48 +138,59 @@ export default function AdminSidebar({
                   href={link.href}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    'flex items-center justify-between px-5 py-4 rounded-2xl text-sm font-black transition-all group border-2',
+                    'flex items-center justify-between px-5 py-3 rounded-xl text-[13px] font-black transition-all group border-2',
                     isActive
-                      ? 'bg-orange-800 border-white/20 text-white shadow-lg shadow-orange-900/50'
-                      : 'bg-transparent border-transparent text-white/50 hover:bg-white/5 hover:text-white'
+                      ? 'bg-blue-800 border-blue-400 text-white shadow-lg shadow-blue-900/20'
+                      : 'bg-transparent border-transparent text-blue-100 hover:bg-blue-700 hover:text-white'
                   )}
                 >
                   <div className='flex items-center gap-3'>
                     <link.icon
-                      size={20}
+                      size={18}
                       className={cn(
                         'stroke-[2.5]',
                         isActive
                           ? 'text-white'
-                          : 'text-white/30 group-hover:text-white'
+                          : 'text-blue-200 group-hover:text-white'
                       )}
                     />
-                    <span>{link.name}</span>
+                    <span className='uppercase tracking-tight'>
+                      {link.name}
+                    </span>
                   </div>
                   {badgeCount && (
-                    <span className='relative flex items-center justify-center min-w-6 h-6 px-2 rounded-lg text-[10px] font-black bg-brand-orange text-white shadow-md'>
+                    <span
+                      className={cn(
+                        'flex items-center justify-center min-w-5 h-5 px-1.5 rounded-lg text-[9px] font-black',
+                        isActive
+                          ? 'bg-white text-blue-800'
+                          : 'bg-blue-900 text-white'
+                      )}
+                    >
                       {badgeCount}
                     </span>
                   )}
                 </Link>
 
                 {showTreasuryAfter && (
-                  <div className='py-2'>
+                  <div className='my-2'>
                     <button
                       onClick={() => setIsTreasuryOpen(!isTreasuryOpen)}
                       className={cn(
-                        'w-full flex items-center justify-between px-5 py-4 rounded-2xl text-sm font-black transition-all group border-2',
+                        'w-full flex items-center justify-between px-5 py-3 rounded-xl text-[13px] font-black transition-all group border-2',
                         isTreasuryOpen || pathname.includes('/admin/financials')
-                          ? 'text-white'
-                          : 'text-white/50 hover:text-white'
+                          ? 'border-blue-400/30 text-white bg-blue-700/50 shadow-inner'
+                          : 'border-transparent text-blue-100 hover:text-white hover:bg-blue-700'
                       )}
                     >
                       <div className='flex items-center gap-3'>
                         <Wallet
-                          size={20}
-                          className='stroke-[2.5] text-brand-orange'
+                          size={18}
+                          className='stroke-[2.5] text-blue-100'
                         />
-                        <span>Treasury Hub</span>
+                        <span className='uppercase tracking-tight'>
+                          Treasury Hub
+                        </span>
                       </div>
                       {isTreasuryOpen ? (
                         <ChevronDown size={16} />
@@ -186,33 +200,43 @@ export default function AdminSidebar({
                     </button>
 
                     {isTreasuryOpen && (
-                      <div className='mt-2 ml-4 pl-4 border-l-2 border-white/10 space-y-1 animate-in slide-in-from-top-2 duration-200'>
-                        <Link
-                          href='/admin/financials'
-                          className={cn(
-                            'flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all',
-                            pathname === '/admin/financials'
-                              ? 'bg-white/10 text-white'
-                              : 'text-white/40 hover:text-white'
-                          )}
-                        >
-                          <Banknote size={14} /> Settlements
-                          <span className='ml-auto bg-brand-orange text-white text-[8px] px-1.5 py-0.5 rounded shadow-sm'>
-                            {essentials.Payments}
-                          </span>
-                        </Link>
-                        <Link
-                          href='/admin/financials/revenue'
-                          className='flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all'
-                        >
-                          <History size={14} /> Revenue Logs
-                        </Link>
-                        <Link
-                          href='/admin/financials/nodes'
-                          className='flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all'
-                        >
-                          <Building size={14} /> Bank Nodes
-                        </Link>
+                      <div className='mt-1 ml-6 pl-4 border-l-2 border-blue-900/40 space-y-1 animate-in slide-in-from-top-2 duration-200'>
+                        {[
+                          {
+                            name: 'Settlements',
+                            href: '/admin/financials',
+                            icon: Banknote,
+                            badge: essentials.Payments,
+                          },
+                          {
+                            name: 'Revenue Logs',
+                            href: '/admin/financials/revenue',
+                            icon: History,
+                          },
+                          {
+                            name: 'Bank Nodes',
+                            href: '/admin/financials/nodes',
+                            icon: Building,
+                          },
+                        ].map((sub) => (
+                          <Link
+                            key={sub.name}
+                            href={sub.href}
+                            className={cn(
+                              'flex items-center gap-3 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
+                              pathname === sub.href
+                                ? 'text-white bg-blue-800 shadow-sm'
+                                : 'text-blue-100 hover:bg-blue-700/50 hover:text-white'
+                            )}
+                          >
+                            <sub.icon size={14} /> {sub.name}
+                            {sub.badge && (
+                              <span className='ml-auto bg-blue-900 text-white text-[8px] px-1.5 py-0.5 rounded'>
+                                {sub.badge}
+                              </span>
+                            )}
+                          </Link>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -222,17 +246,18 @@ export default function AdminSidebar({
           })}
         </nav>
 
-        <div className='p-4 mt-auto border-t border-white/10 space-y-3 bg-orange-950/20'>
-          <div className='flex items-center gap-3 px-4 py-4 rounded-3xl bg-white/5 border border-white/10'>
-            <div className='w-10 h-10 rounded-xl bg-brand-orange flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-orange/30'>
-              <ShieldCheck size={20} strokeWidth={3} />
+        {/* Footer Profile Section */}
+        <div className='p-4 mt-auto border-t border-blue-500 space-y-2 bg-blue-700/40'>
+          <div className='flex items-center gap-3 px-4 py-4 rounded-3xl bg-blue-800/60 border border-blue-400/20 shadow-xl'>
+            <div className='w-11 h-11 rounded-2xl bg-white flex items-center justify-center text-blue-600 shrink-0 shadow-inner'>
+              <ShieldCheck size={22} strokeWidth={3} />
             </div>
             <div className='min-w-0'>
-              <p className='text-sm font-black truncate text-white leading-none'>
+              <p className='text-[14px] font-black truncate text-white leading-none uppercase tracking-tight'>
                 {adminName}
               </p>
-              <p className='text-[10px] text-white/40 uppercase tracking-widest font-black mt-1.5'>
-                {adminRole}
+              <p className='text-[10px] text-blue-200 uppercase tracking-[0.15em] font-black mt-2'>
+                {adminRole} Node
               </p>
             </div>
           </div>
@@ -242,10 +267,14 @@ export default function AdminSidebar({
               localStorage.clear()
               window.location.href = '/login'
             }}
-            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-sm font-black text-white/40 hover:bg-orange-700 hover:text-white transition-all group'
+            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-[11px] font-black uppercase tracking-widest text-blue-100  hover:bg-red-500 hover:text-white hover:border-red-700 border border-transparent transition-all group'
           >
-            <LogOut size={20} strokeWidth={3} />
-            <span>Exit Terminal</span>
+            <LogOut
+              size={18}
+              strokeWidth={3}
+              className='group-hover:rotate-12 transition-transform'
+            />
+            <span>Terminate Session</span>
           </button>
         </div>
       </aside>
