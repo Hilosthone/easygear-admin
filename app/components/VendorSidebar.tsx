@@ -215,7 +215,7 @@ export default function VendorSidebar({
               localStorage.clear()
               window.location.href = '/login'
             }}
-            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all group'
+            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-red-500 hover:text-white transition-all group'
           >
             <LogOut
               size={18}
