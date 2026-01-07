@@ -43,7 +43,7 @@ const ADMIN_LINKS = [
   },
   { name: 'Products', href: '/admin/products', icon: Package },
   // Treasury is now handled separately as a dropdown below
-  { name: 'Reports', href: '/admin/reports', icon: BarChart3, badgeKey: 'Reports' },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3,  },
   {
     name: 'Support',
     href: '/admin/support',
@@ -101,7 +101,7 @@ export default function AdminSidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-70 w-72 bg-brand-blue text-white flex flex-col transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 border-r border-white/10 shadow-2xl',
+          'fixed inset-y-0 left-0 z-70 w-72 bg-brand-orange text-white flex flex-col transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 border-r border-white/10 shadow-2xl',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -137,7 +137,7 @@ export default function AdminSidebar({
                   className={cn(
                     'flex items-center justify-between px-5 py-4 rounded-2xl text-sm font-black transition-all group border-2',
                     isActive
-                      ? 'bg-blue-800 border-white/20 text-white shadow-lg shadow-blue-900/50'
+                      ? 'bg-orange-800 border-white/20 text-white shadow-lg shadow-orange-900/50'
                       : 'bg-transparent border-transparent text-white/50 hover:bg-white/5 hover:text-white'
                   )}
                 >
@@ -222,7 +222,7 @@ export default function AdminSidebar({
           })}
         </nav>
 
-        <div className='p-4 mt-auto border-t border-white/10 space-y-3 bg-blue-950/20'>
+        <div className='p-4 mt-auto border-t border-white/10 space-y-3 bg-orange-950/20'>
           <div className='flex items-center gap-3 px-4 py-4 rounded-3xl bg-white/5 border border-white/10'>
             <div className='w-10 h-10 rounded-xl bg-brand-orange flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-orange/30'>
               <ShieldCheck size={20} strokeWidth={3} />
@@ -242,7 +242,7 @@ export default function AdminSidebar({
               localStorage.clear()
               window.location.href = '/login'
             }}
-            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-sm font-black text-white/40 hover:bg-red-600 hover:text-white transition-all group'
+            className='flex items-center gap-3 px-5 py-4 w-full rounded-2xl text-sm font-black text-white/40 hover:bg-orange-700 hover:text-white transition-all group'
           >
             <LogOut size={20} strokeWidth={3} />
             <span>Exit Terminal</span>

@@ -1,3 +1,5 @@
+// app/constants/navigation.ts
+
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +14,10 @@ import {
   Star,
   Tag,
   Wallet,
+  PlusSquare,
+  UserCog,
+  LifeBuoy,
+  UserCircle,
 } from 'lucide-react'
 
 export const ADMIN_NAV = [
@@ -25,11 +31,14 @@ export const ADMIN_NAV = [
   { name: 'Support', href: '/admin/support', icon: Ticket },
 ]
 
-export const VENDOR_NAV = [
-  { name: 'Dashboard', href: '/vendor/dashboard', icon: LayoutDashboard },
-  { name: 'My Gear', href: '/vendor/products', icon: Package },
+const VENDOR_LINKS = [
+  { name: 'Dashboard', href: '/vendor', icon: LayoutDashboard },
+  { name: 'Add Gear', href: '/vendor/products/add', icon: PlusSquare }, // Primary Action
+  { name: 'My Products', href: '/vendor/products', icon: Package }, // Inventory Hub
   { name: 'Orders', href: '/vendor/orders', icon: ShoppingCart },
   { name: 'Earnings', href: '/vendor/earnings', icon: Wallet },
   { name: 'Reviews', href: '/vendor/reviews', icon: Star },
   { name: 'Promotions', href: '/vendor/promotions', icon: Tag },
+  { name: 'Profile', href: '/vendor/profile', icon: UserCircle },
+  { name: 'Support', href: '/vendor/support', icon: LifeBuoy },
 ]

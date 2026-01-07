@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Menu, Search, Bell, UserCircle, Settings } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 
@@ -10,6 +10,22 @@ interface HeaderProps {
 }
 
 export default function Header({ setIsOpen, role }: HeaderProps) {
+  // 1. Create state for the dynamic identity name
+  const [identityName, setIdentityName] = useState<string>('Guest')
+
+  // 2. Sync with localStorage on mount
+  useEffect(() => {
+    const sessionData = localStorage.getItem('user')
+    if (sessionData) {
+      try {
+        const user = JSON.parse(sessionData)
+        setIdentityName(user.name || 'User')
+      } catch (error) {
+        setIdentityName(role === 'admin' ? 'System Admin' : 'Merchant')
+      }
+    }
+  }, [role])
+
   return (
     <header className='h-24 bg-white border-b-4 border-slate-100 sticky top-0 z-40 px-6 md:px-10 flex items-center justify-between'>
       {/* Left: Mobile Toggle & Context Title */}
@@ -31,7 +47,7 @@ export default function Header({ setIsOpen, role }: HeaderProps) {
         </div>
       </div>
 
-      {/* Center: Search (Hidden on small mobile) */}
+      {/* Center: Search */}
       <div className='hidden md:flex flex-1 max-w-md mx-10 relative group'>
         <Search
           className='absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue transition-colors'
@@ -47,27 +63,24 @@ export default function Header({ setIsOpen, role }: HeaderProps) {
 
       {/* Right: Actions */}
       <div className='flex items-center gap-2 md:gap-4'>
-        {/* Notifications */}
         <button className='relative p-3 text-slate-400 hover:text-brand-blue hover:bg-slate-50 rounded-2xl transition-all group'>
           <Bell size={22} strokeWidth={2.5} />
           <span className='absolute top-3 right-3 w-3 h-3 bg-brand-orange border-2 border-white rounded-full animate-pulse' />
         </button>
 
-        {/* Quick Settings (Admin Only) */}
         {role === 'admin' && (
           <button className='hidden sm:flex p-3 text-slate-400 hover:text-brand-blue hover:bg-slate-50 rounded-2xl transition-all'>
             <Settings size={22} strokeWidth={2.5} />
           </button>
         )}
 
-        {/* Divider */}
         <div className='h-10 w-0.5 bg-slate-100 mx-2 hidden sm:block' />
 
-        {/* Profile Identity */}
+        {/* Profile Identity - Updated to reflect Identity Name */}
         <div className='flex items-center gap-3 pl-2'>
           <div className='hidden lg:block text-right'>
             <p className='text-sm font-black text-brand-slate leading-none'>
-              Chidi Okeke
+              {identityName}
             </p>
             <p className='text-[10px] font-bold text-emerald-500 uppercase mt-1'>
               Online
@@ -75,13 +88,18 @@ export default function Header({ setIsOpen, role }: HeaderProps) {
           </div>
           <div
             className={cn(
-              'w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg border-2 border-white',
+              'w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg border-2 border-white font-black text-lg',
               role === 'admin'
                 ? 'bg-brand-blue shadow-brand-blue/20'
                 : 'bg-brand-orange shadow-brand-orange/20'
             )}
           >
-            <UserCircle size={28} strokeWidth={2} />
+            {/* Show First Initial or Icon */}
+            {identityName !== 'Guest' ? (
+              identityName.charAt(0).toUpperCase()
+            ) : (
+              <UserCircle size={28} />
+            )}
           </div>
         </div>
       </div>
