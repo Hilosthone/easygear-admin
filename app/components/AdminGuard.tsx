@@ -12,23 +12,49 @@ export default function AdminGuard({
   const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
-    // Check if the user has a valid session in localStorage
-    const userRole = localStorage.getItem('user_role')
-    const userName = localStorage.getItem('user_name')
+    // Safety check for client-side execution
+    if (typeof window === 'undefined') return
 
-    if (!userRole || !userName) {
-      // If no session, boot them back to login
+    const savedUser = localStorage.getItem('user')
+    const token = localStorage.getItem('easygear_token')
+
+    // 1. If no user or no token, redirect to login immediately
+    if (!savedUser || !token) {
       router.replace('/login')
-    } else {
-      setAuthorized(true)
+      return
+    }
+
+    try {
+      const user = JSON.parse(savedUser)
+
+      /**
+       * 2. Strict Role Check
+       * Based on your backend, 'System Root' is the top-level admin.
+       */
+      if (user.role === 'System Root') {
+        setAuthorized(true)
+      } else {
+        // Redirect unauthorized users to the vendor portal
+        router.replace('/vendor')
+      }
+    } catch (error) {
+      // Clear corrupted data and boot to login
+      localStorage.removeItem('user')
+      localStorage.removeItem('easygear_token')
+      router.replace('/login')
     }
   }, [router])
 
+  // Show a clean loading state while verifying credentials
   if (!authorized) {
-    // Optional: A branded loading screen while checking auth
     return (
       <div className='flex min-h-screen items-center justify-center bg-white'>
-        <div className='h-8 w-8 border-4 border-brand-blue border-t-brand-orange rounded-full animate-spin' />
+        <div className='flex flex-col items-center gap-4'>
+          <div className='h-8 w-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin' />
+          <p className='text-[10px] font-black uppercase tracking-widest text-slate-400'>
+            Verifying Terminal Authority...
+          </p>
+        </div>
       </div>
     )
   }

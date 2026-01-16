@@ -59,9 +59,8 @@ export default function AdminSidebar({
   setIsOpen: (v: boolean) => void
 }) {
   const pathname = usePathname()
-  // Initial state reflects a placeholder until useEffect hydrates from localStorage
-  const [adminName, setAdminName] = useState('Loading...')
-  const [adminRole, setAdminRole] = useState('Accessing Node')
+  const [adminName, setAdminName] = useState('Easygear')
+  const [adminRole, setAdminRole] = useState('System Root')
   const [mounted, setMounted] = useState(false)
   const [isTreasuryOpen, setIsTreasuryOpen] = useState(
     pathname.includes('/admin/financials')
@@ -69,15 +68,19 @@ export default function AdminSidebar({
 
   useEffect(() => {
     setMounted(true)
-    // Grabbing the name stored during the Sign-Up/Login flow
-    const name = localStorage.getItem('user_name')
-    const role = localStorage.getItem('user_role')
 
-    if (name) setAdminName(name)
-    else setAdminName('Guest Admin') // Fallback if no name found
+    // UPDATED: Parsing the 'user' object from LoginPage
+    const storedUser = localStorage.getItem('user')
 
-    if (role) setAdminRole(role)
-    else setAdminRole('Staff')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        setAdminName(userData.name || 'Easygear')
+        setAdminRole(userData.role || 'System Root')
+      } catch (e) {
+        console.error('Error parsing user data', e)
+      }
+    }
   }, [])
 
   const essentials: Record<string, number> = {

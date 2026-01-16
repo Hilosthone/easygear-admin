@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Search,
   User,
@@ -13,6 +13,7 @@ import {
   History,
   Command,
   CornerDownLeft,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 
@@ -21,91 +22,84 @@ interface SearchOverlayProps {
   onClose: () => void
 }
 
-// Mock Database with scoped permissions
-const MOCK_RECORDS = [
-  {
-    id: '1',
-    type: 'vendor',
-    name: 'Electronics Hub',
-    detail: '48 Active Products',
-    scope: 'admin',
-  },
-  {
-    id: '2',
-    type: 'user',
-    name: 'Sarah Jenkins',
-    detail: 'Premium Tier Customer',
-    scope: 'admin',
-  },
-  {
-    id: '3',
-    type: 'product',
-    name: 'Sony WH-1000XM5',
-    detail: 'In Stock: 12 units',
-    scope: 'vendor',
-  },
-  {
-    id: '4',
-    type: 'order',
-    name: 'Order #TG-9921',
-    detail: 'Status: Processing',
-    scope: 'vendor',
-  },
-  {
-    id: '5',
-    type: 'vendor',
-    name: 'Gear Pro Store',
-    detail: 'Pending Verification',
-    scope: 'admin',
-  },
-  {
-    id: '6',
-    type: 'product',
-    name: 'MacBook Air M3',
-    detail: 'In Stock: 5 units',
-    scope: 'vendor',
-  },
-  {
-    id: '7',
-    type: 'user',
-    name: 'Mike Ross',
-    detail: 'New Registration',
-    scope: 'admin',
-  },
-  {
-    id: '8',
-    type: 'log',
-    name: 'System Override',
-    detail: 'User: Root_Alpha - 14:20',
-    scope: 'admin',
-  },
-]
+interface SearchResult {
+  id: string | number
+  type: 'vendor' | 'user' | 'product' | 'order' | 'log'
+  name: string
+  detail: string
+}
 
 export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [loading, setLoading] = useState(false)
   const [role, setRole] = useState<'admin' | 'vendor' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Initialize Role and Focus Input
   useEffect(() => {
-    const userRole = localStorage.getItem('user_role')
-    // Simulating role detection logic
-    if (userRole === 'System Root') setRole('admin')
-    else setRole('vendor')
-  }, [])
+    if (isOpen) {
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser)
+          // Consistent with your LoginPage logic
+          setRole(userData.role === 'System Root' ? 'admin' : 'vendor')
+        } catch (e) {
+          console.error('Error parsing user role', e)
+        }
+      }
+      // Delay focus slightly to allow for animation
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isOpen])
 
-  // Optimized Search Logic with role-based filtering
-  const filteredResults = useMemo(() => {
-    if (!query.trim()) return []
-    return MOCK_RECORDS.filter((item) => {
-      const matchesQuery =
-        item.name.toLowerCase().includes(query.toLowerCase()) ||
-        item.type.toLowerCase().includes(query.toLowerCase())
-      const matchesScope = item.scope === role
-      return matchesQuery && matchesScope
-    })
+  // Debounced Search Logic
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([])
+      return
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true)
+      try {
+        // Updated to use your live production API structure
+        const baseUrl = 'https://api.easygear.ng/api/v1'
+        const token = localStorage.getItem('easygear_token')
+
+        const response = await fetch(
+          `${baseUrl}/search?q=${encodeURIComponent(query)}&scope=${role}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }
+        )
+
+        const result = await response.json()
+
+        // Assuming API returns { success: true, data: [...] }
+        if (result.success && Array.isArray(result.data)) {
+          setResults(result.data)
+        } else if (Array.isArray(result)) {
+          setResults(result)
+        } else {
+          setResults([])
+        }
+      } catch (error) {
+        console.error('Terminal Search Error:', error)
+        setResults([])
+      } finally {
+        setLoading(false)
+      }
+    }, 400)
+
+    return () => clearTimeout(delayDebounceFn)
   }, [query, role])
 
-  // Keyboard Navigation: ESC to close
+  // Accessibility: ESC to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -117,26 +111,25 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   if (!isOpen) return null
 
   const isVendor = role === 'vendor'
-  const brandColor = isVendor ? 'text-brand-orange' : 'text-brand-blue'
+  const brandColor = isVendor ? 'text-orange-500' : 'text-blue-600'
   const accentBg = isVendor ? 'bg-orange-50' : 'bg-blue-50'
   const borderFocus = isVendor
-    ? 'focus-within:border-brand-orange/30'
-    : 'focus-within:border-brand-blue/30'
+    ? 'focus-within:border-orange-500/30'
+    : 'focus-within:border-blue-600/30'
 
   return (
     <div className='fixed inset-0 z-100 flex items-start justify-center pt-[10vh] px-4 sm:px-6'>
-      {/* Backdrop */}
       <div
-        className='absolute inset-0 bg-brand-slate/60 backdrop-blur-md transition-opacity animate-in fade-in duration-300'
+        className='absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity animate-in fade-in duration-300'
         onClick={onClose}
       />
 
       <div
         className={cn(
-          'relative w-full max-w-2xl bg-white rounded-5xl shadow-[0_40px_80px_-15px_rgba(0,0,0,0.35)] border-4 border-white overflow-hidden animate-in zoom-in-95 slide-in-from-top-8 duration-300'
+          'relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.35)] border-4 border-white overflow-hidden animate-in zoom-in-95 slide-in-from-top-8 duration-300'
         )}
       >
-        {/* Input Module */}
+        {/* Search Input Area */}
         <div
           className={cn(
             'p-8 border-b-2 border-slate-50 flex items-center gap-5 transition-all',
@@ -144,20 +137,23 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           )}
         >
           <div className={cn('p-3 rounded-2xl shrink-0', accentBg, brandColor)}>
-            <Search size={24} strokeWidth={3} />
+            {loading ? (
+              <Loader2 size={24} strokeWidth={3} className='animate-spin' />
+            ) : (
+              <Search size={24} strokeWidth={3} />
+            )}
           </div>
           <input
             ref={inputRef}
-            autoFocus
             type='text'
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
               role === 'admin'
-                ? 'Search terminal: vendors, users, logs...'
-                : 'Search your store: products, orders, settings...'
+                ? 'Invoke: vendors, users, logs...'
+                : 'Search store: products, orders, records...'
             }
-            className='flex-1 bg-transparent outline-none text-xl font-black text-brand-slate placeholder:text-slate-300 uppercase tracking-tight'
+            className='flex-1 bg-transparent outline-none text-xl font-black text-slate-900 placeholder:text-slate-300 uppercase tracking-tight'
           />
           <button
             onClick={onClose}
@@ -167,13 +163,15 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </button>
         </div>
 
-        {/* Dynamic Context View */}
+        {/* Results Area */}
         <div className='max-h-[50vh] overflow-y-auto custom-scrollbar bg-white'>
           {query.length > 0 ? (
             <div className='p-4 space-y-2'>
               <div className='px-4 py-3 flex items-center justify-between'>
                 <p className='text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
-                  Query Result Payload: {filteredResults.length} Units
+                  {loading
+                    ? 'Retrieving Encrypted Packets...'
+                    : `Query Results: ${results.length} Nodes Found`}
                 </p>
                 <div
                   className={cn(
@@ -184,7 +182,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   <div
                     className={cn(
                       'w-2 h-2 rounded-full animate-pulse',
-                      isVendor ? 'bg-brand-orange' : 'bg-brand-blue'
+                      isVendor ? 'bg-orange-500' : 'bg-blue-600'
                     )}
                   />
                   <span
@@ -193,12 +191,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       brandColor
                     )}
                   >
-                    {role} Access
+                    {role} Level Search
                   </span>
                 </div>
               </div>
 
-              {filteredResults.map((item) => (
+              {results.map((item) => (
                 <SearchResultItem
                   key={item.id}
                   type={item.type}
@@ -207,24 +205,25 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   brandColor={brandColor}
                   accentBg={accentBg}
                   onClick={() => {
-                    console.log(`Routing to Node: ${item.id}`)
+                    console.log(`Navigating to Node: ${item.id}`)
                     onClose()
                   }}
                 />
               ))}
 
-              {filteredResults.length === 0 && (
+              {!loading && results.length === 0 && (
                 <div className='py-20 text-center space-y-4'>
-                  <div className='inline-flex p-6 bg-slate-50 rounded-4xl text-slate-200'>
+                  <div className='inline-flex p-6 bg-slate-50 rounded-full text-slate-200'>
                     <Command size={48} strokeWidth={3} />
                   </div>
                   <p className='text-sm font-black text-slate-400 uppercase tracking-widest'>
-                    No encrypted records found
+                    Zero records detected
                   </p>
                 </div>
               )}
             </div>
           ) : (
+            /* Standby State */
             <div className='py-24 text-center group'>
               <div
                 className={cn(
@@ -233,18 +232,21 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 )}
               >
                 <History
-                  className={cn('animate-spin-slow', brandColor)}
+                  className={cn(
+                    'animate-[spin_4s_linear_infinite]',
+                    brandColor
+                  )}
                   size={48}
                   strokeWidth={2.5}
                 />
               </div>
-              <h3 className='text-xl font-black text-brand-slate uppercase italic tracking-tighter'>
+              <h3 className='text-xl font-black text-slate-900 uppercase italic tracking-tighter'>
                 Standby Mode
               </h3>
               <p className='text-[10px] font-bold text-slate-400 mt-3 max-w-70 mx-auto uppercase tracking-widest leading-relaxed'>
                 System ready for deep-indexing. Search across{' '}
                 <span className={brandColor}>
-                  {role === 'admin' ? 'ecosystem logs' : 'inventory assets'}
+                  {role === 'admin' ? 'global ecosystem' : 'store inventory'}
                 </span>
                 .
               </p>
@@ -252,16 +254,15 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           )}
         </div>
 
-        {/* Command Footer */}
+        {/* Footer Shortcut Bar */}
         <div className='p-6 bg-slate-50/80 border-t-2 border-slate-100 flex items-center justify-between'>
           <div className='flex items-center gap-6'>
             <div className='flex items-center gap-2'>
-              <kbd className='px-2 py-1 bg-white border-2 border-slate-200 rounded-lg text-[10px] font-black shadow-sm'>
-                <CornerDownLeft size={10} className='inline mr-1' />
-                ENTER
+              <kbd className='px-2 py-1 bg-white border-2 border-slate-200 rounded-lg text-[10px] font-black shadow-sm flex items-center gap-1'>
+                <CornerDownLeft size={10} /> ENTER
               </kbd>
               <span className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>
-                Execute
+                Select
               </span>
             </div>
             <div className='flex items-center gap-2'>
@@ -273,11 +274,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               </span>
             </div>
           </div>
-
           <div className='hidden sm:flex items-center gap-3'>
             <ShieldCheck size={16} className={brandColor} />
             <span className='text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]'>
-              Encrypted Tunnel Active
+              Secure Node Connection
             </span>
           </div>
         </div>
@@ -293,7 +293,14 @@ function SearchResultItem({
   brandColor,
   accentBg,
   onClick,
-}: any) {
+}: {
+  type: SearchResult['type']
+  title: string
+  desc: string
+  brandColor: string
+  accentBg: string
+  onClick: () => void
+}) {
   const getIcon = () => {
     switch (type) {
       case 'vendor':
@@ -312,7 +319,7 @@ function SearchResultItem({
   return (
     <button
       onClick={onClick}
-      className='w-full flex items-center justify-between p-5 hover:bg-slate-50 rounded-4xl group transition-all border-2 border-transparent hover:border-slate-100'
+      className='w-full flex items-center justify-between p-5 hover:bg-slate-50 rounded-3xl group transition-all border-2 border-transparent hover:border-slate-100'
     >
       <div className='flex items-center gap-5'>
         <div
@@ -325,7 +332,7 @@ function SearchResultItem({
           {getIcon()}
         </div>
         <div className='text-left'>
-          <p className='text-base font-black text-brand-slate uppercase tracking-tighter leading-none'>
+          <p className='text-base font-black text-slate-900 uppercase tracking-tighter leading-none'>
             {title}
           </p>
           <p className='text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2'>

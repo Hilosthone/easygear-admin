@@ -52,12 +52,3 @@ export async function publishProduct(formData: any) {
     return { error: `Connection failed: ${error.message}` }
   }
 }
-
-// export async function publishProduct(formData: any) {
-//   // SIMULATE API DELAY
-//   await new Promise((resolve) => setTimeout(resolve, 2000))
-
-//   // MOCK SUCCESS (Comment this out once you get the real token)
-//   console.log('Mock Syncing data:', formData)
-//   return { success: true }
-// }

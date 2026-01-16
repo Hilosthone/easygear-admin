@@ -12,14 +12,35 @@ export default function VendorGuard({
   const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
-    const userRole = localStorage.getItem('user_role')
+    if (typeof window === 'undefined') return
 
-    // Specifically check for 'Vendor' role
-    if (userRole !== 'Vendor') {
-      // If not a vendor, redirect to login
+    const savedUser = localStorage.getItem('user')
+    const token = localStorage.getItem('easygear_token')
+
+    // 1. Check for basic session data
+    if (!savedUser || !token) {
       router.replace('/login')
-    } else {
-      setAuthorized(true)
+      return
+    }
+
+    try {
+      const user = JSON.parse(savedUser)
+
+      /**
+       * 2. Role Check
+       * Note: Ensure this matches the string returned by your API.
+       * If your API returns 'Vendor' (capitalized), update this check.
+       */
+      if (user.role?.toLowerCase() === 'vendor') {
+        setAuthorized(true)
+      } else {
+        // If an Admin accidentally tries to go to the Vendor portal, redirect to Admin
+        router.replace('/admin')
+      }
+    } catch (error) {
+      localStorage.removeItem('user')
+      localStorage.removeItem('easygear_token')
+      router.replace('/login')
     }
   }, [router])
 
@@ -27,9 +48,9 @@ export default function VendorGuard({
     return (
       <div className='flex min-h-screen items-center justify-center bg-white'>
         <div className='flex flex-col items-center gap-4'>
-          <div className='h-10 w-10 border-4 border-brand-orange border-t-transparent rounded-full animate-spin' />
-          <p className='text-xs font-black uppercase tracking-widest text-zinc-400'>
-            Verifying Vendor Credentials
+          <div className='h-8 w-8 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin' />
+          <p className='text-[10px] font-black uppercase tracking-widest text-slate-400'>
+            Accessing Vendor Portal...
           </p>
         </div>
       </div>

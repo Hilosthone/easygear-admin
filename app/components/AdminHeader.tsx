@@ -24,7 +24,8 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
   const pathname = usePathname()
-  const [adminName, setAdminName] = useState('Admin')
+  const [adminName, setAdminName] = useState('Easygear')
+  const [adminRole, setAdminRole] = useState('System Root')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -37,8 +38,17 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
   }, [])
 
   useEffect(() => {
-    const name = localStorage.getItem('user_name')
-    if (name) setAdminName(name)
+    // UPDATED: Consistency with LoginPage localStorage key
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        if (userData.name) setAdminName(userData.name)
+        if (userData.role) setAdminRole(userData.role)
+      } catch (e) {
+        console.error('Error parsing header user data', e)
+      }
+    }
   }, [])
 
   // CMD+K Shortcut Logic
@@ -74,12 +84,12 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
             </button>
 
             <div className='hidden sm:flex items-center gap-3'>
-              <div className='bg-brand-slate p-2 rounded-xl'>
-                <Cpu size={16} className='text-brand-blue animate-pulse' />
+              <div className='bg-slate-900 p-2 rounded-xl'>
+                <Cpu size={16} className='text-blue-500 animate-pulse' />
               </div>
               <div className='flex flex-col'>
-                <h1 className='text-[10px] font-black text-brand-slate uppercase tracking-[0.3em] leading-none'>
-                  Terminal <span className='text-brand-blue'>v1.0</span>
+                <h1 className='text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] leading-none'>
+                  Terminal <span className='text-blue-600'>v1.0</span>
                 </h1>
                 <p className='text-[8px] font-bold text-zinc-400 uppercase mt-1'>
                   Node: Abuja_Main
@@ -96,7 +106,7 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
             <div className='relative w-full group'>
               <div className='absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none'>
                 <Search
-                  className='text-zinc-400 group-hover:text-brand-blue transition-colors'
+                  className='text-zinc-400 group-hover:text-blue-600 transition-colors'
                   size={16}
                   strokeWidth={3}
                 />
@@ -107,14 +117,8 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
 
               {/* Hotkey Indicator */}
               <div className='absolute right-3 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-1.5 px-2 py-1 bg-white border-2 border-zinc-100 rounded-lg shadow-sm'>
-                <Command
-                  size={10}
-                  strokeWidth={3}
-                  className='text-brand-blue'
-                />
-                <span className='text-[9px] font-black text-brand-slate'>
-                  K
-                </span>
+                <Command size={10} strokeWidth={3} className='text-blue-600' />
+                <span className='text-[9px] font-black text-slate-900'>K</span>
               </div>
             </div>
           </div>
@@ -122,9 +126,9 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
           {/* RIGHT: Notifications & Identity */}
           <div className='flex items-center gap-2 sm:gap-5 shrink-0'>
             {/* System Notifications */}
-            <button className='relative p-3 text-zinc-400 hover:text-brand-blue transition-colors group hidden xs:block'>
+            <button className='relative p-3 text-zinc-400 hover:text-blue-600 transition-colors group hidden xs:block'>
               <Bell size={20} strokeWidth={2.5} />
-              <span className='absolute top-2.5 right-2.5 w-2 h-2 bg-brand-orange rounded-full border-2 border-white group-hover:scale-125 transition-transform' />
+              <span className='absolute top-2.5 right-2.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white group-hover:scale-125 transition-transform' />
             </button>
 
             <div className='h-8 w-0.5 bg-zinc-100 hidden sm:block' />
@@ -135,20 +139,20 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
                 className='flex items-center gap-3 p-1 pr-3 hover:bg-white rounded-2xl transition-all border-2 border-transparent hover:border-zinc-100 group'
               >
                 <div className='relative'>
-                  <div className='h-10 w-10 rounded-xl bg-brand-slate flex items-center justify-center text-white shadow-lg transition-transform group-active:scale-95 overflow-hidden'>
+                  <div className='h-10 w-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg transition-transform group-active:scale-95 overflow-hidden'>
                     <User strokeWidth={2.5} size={20} />
                   </div>
                   <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full' />
                 </div>
 
                 <div className='hidden md:block text-left'>
-                  <p className='text-xs font-black text-brand-slate leading-none uppercase tracking-tighter'>
+                  <p className='text-xs font-black text-slate-900 leading-none uppercase tracking-tighter'>
                     {adminName}
                   </p>
                   <div className='flex items-center gap-1 mt-1'>
                     <Activity size={8} className='text-emerald-500' />
                     <p className='text-[8px] font-black text-zinc-400 uppercase tracking-widest'>
-                      Level 4 Root
+                      {adminRole}
                     </p>
                   </div>
                 </div>
@@ -158,7 +162,7 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
                   strokeWidth={3}
                   className={cn(
                     'text-zinc-300 transition-transform hidden md:block',
-                    isProfileOpen && 'rotate-180 text-brand-blue'
+                    isProfileOpen && 'rotate-180 text-blue-600'
                   )}
                 />
               </button>
@@ -167,10 +171,10 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
               {isProfileOpen && (
                 <div className='absolute right-0 mt-4 w-64 bg-white border-4 border-slate-50 rounded-[2.5rem] shadow-2xl p-3 animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 z-70'>
                   <div className='px-5 py-5 bg-slate-50/50 rounded-3xl mb-2 border border-slate-100'>
-                    <p className='text-[9px] font-black text-brand-blue uppercase tracking-[0.2em] mb-1'>
+                    <p className='text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1'>
                       Identity Verified
                     </p>
-                    <p className='text-sm font-black text-brand-slate truncate uppercase tracking-tighter'>
+                    <p className='text-sm font-black text-slate-900 truncate uppercase tracking-tighter'>
                       {adminName}
                     </p>
                   </div>
@@ -179,7 +183,7 @@ export default function AdminHeader({ setIsOpen }: AdminHeaderProps) {
                     <DropdownItem
                       icon={<ShieldCheck size={16} />}
                       label='Clearance Level'
-                      color='text-brand-blue'
+                      color='text-blue-600'
                     />
                     <DropdownItem
                       icon={<Settings size={16} />}

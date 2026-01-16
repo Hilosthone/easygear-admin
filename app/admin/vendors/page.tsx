@@ -1,13 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   CheckCircle,
   XCircle,
   Store,
-  ExternalLink,
-  MapPin,
-  ShieldCheck,
   AlertCircle,
   Search,
   Filter,
@@ -15,249 +12,253 @@ import {
   ArrowUpRight,
   ShieldAlert,
   BadgeCheck,
+  Loader2,
+  KeyRound,
+  Eye,
+  EyeOff,
+  LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 
-// Expanded Vendor Dataset
-const VENDORS = [
+interface Vendor {
+  id: string
+  name: string
+  owner: string
+  email: string
+  password?: string
+  status: 'Approved' | 'Pending' | 'Flagged' | 'Suspended'
+}
+
+const MOCK_VENDORS: Vendor[] = [
   {
-    id: 'V-101',
-    name: 'Decathlon Sports',
-    owner: 'Jean-Pierre',
-    location: 'Lagos, NG',
-    status: 'Pending',
-    performance: 'N/A',
-    gearCount: 0,
-    revenue: '₦0',
+    id: '101',
+    name: 'Titan Fitness',
+    owner: 'John Doe',
+    email: 'john@titan.fit',
+    password: 'password123',
+    status: 'Approved',
   },
   {
-    id: 'V-102',
-    name: 'Nike Official Store',
+    id: '102',
+    name: 'Apex Gear',
     owner: 'Sarah Chen',
-    location: 'Abuja, NG',
-    status: 'Approved',
-    performance: '4.8',
-    gearCount: 124,
-    revenue: '₦4.2M',
-  },
-  {
-    id: 'V-103',
-    name: 'Mountain Pros',
-    owner: 'Ibrahim Musa',
-    location: 'Jos, NG',
-    status: 'Approved',
-    performance: '4.2',
-    gearCount: 42,
-    revenue: '₦890K',
-  },
-  {
-    id: 'V-104',
-    name: 'Alpha Tactical',
-    owner: 'Marcus Wright',
-    location: 'Port Harcourt, NG',
-    status: 'Flagged',
-    performance: '2.1',
-    gearCount: 89,
-    revenue: '₦2.1M',
-  },
-  {
-    id: 'V-105',
-    name: 'Lagos Hike Club',
-    owner: 'Tunde Afolayan',
-    location: 'Lagos, NG',
-    status: 'Approved',
-    performance: '4.9',
-    gearCount: 15,
-    revenue: '₦320K',
-  },
-  {
-    id: 'V-106',
-    name: 'Summit Gear NG',
-    owner: 'Blessing Okon',
-    location: 'Enugu, NG',
+    email: 'sarah@apex.io',
+    password: 'secure_pass',
     status: 'Pending',
-    performance: 'N/A',
-    gearCount: 0,
-    revenue: '₦0',
   },
   {
-    id: 'V-107',
-    name: 'Desert Runners',
-    owner: 'Aminu Kano',
-    location: 'Kano, NG',
+    id: '103',
+    name: 'Rogue Supply',
+    owner: 'Mike Ross',
+    email: 'mike@rogue.com',
+    password: 'rogue_vault',
+    status: 'Flagged',
+  },
+  {
+    id: '104',
+    name: 'Velocity Sports',
+    owner: 'Emma Wilson',
+    email: 'emma@velocity.net',
+    password: 'vel_2024_auth',
     status: 'Approved',
-    performance: '4.5',
-    gearCount: 67,
-    revenue: '₦1.5M',
-  },
-  {
-    id: 'V-108',
-    name: 'Oceanic Dive Shop',
-    owner: 'Victor Eke',
-    location: 'Lekki, NG',
-    status: 'Suspended',
-    performance: '1.2',
-    gearCount: 30,
-    revenue: '₦450K',
   },
 ]
 
 export default function VendorManagementPage() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [vendors] = useState<Vendor[]>(MOCK_VENDORS)
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>(
+    {}
+  )
+
+  const togglePassword = (id: string) => {
+    setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const filteredVendors = vendors.filter((v) => {
+    const matchesSearch = v.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'All' || v.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   return (
-    <div className='max-w-7xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700'>
-      {/* Header Section */}
-      <div className='flex flex-col xl:flex-row xl:items-end justify-between gap-6'>
-        <div>
-          <h1 className='text-5xl font-black text-brand-slate tracking-tighter italic uppercase'>
-            Vendor Command
+    <div className='max-w-350 mx-auto space-y-10 pb-20 px-6'>
+      {/* Header & Controls */}
+      <div className='flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6'>
+        <div className='space-y-2'>
+          <h1 className='text-4xl font-black tracking-tighter uppercase italic text-slate-900'>
+            Nexus / Vendors
           </h1>
-          <p className='text-slate-400 font-black mt-2 uppercase text-[10px] tracking-[0.4em] flex items-center gap-2'>
-            <Store size={14} className='text-brand-blue' />
-            Merchant Ecosystem & Global Compliance
+          <p className='text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase'>
+            Entity Control Terminal
           </p>
         </div>
 
-        <div className='flex flex-wrap gap-4'>
+        <div className='flex flex-wrap items-center gap-4'>
+          {/* Status Filter */}
+          <div className='relative'>
+            <Filter
+              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400'
+              size={16}
+            />
+            <select
+              className='pl-10 pr-8 py-4 bg-white border-4 border-slate-100 rounded-2xl font-black text-[10px] tracking-widest appearance-none focus:outline-none focus:border-blue-600 cursor-pointer'
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value='All'>ALL STATUSES</option>
+              <option value='Pending'>PENDING ONLY</option>
+              <option value='Approved'>APPROVED ONLY</option>
+              <option value='Flagged'>FLAGGED ONLY</option>
+            </select>
+          </div>
+
+          {/* Search Input */}
           <div className='relative group'>
             <Search
-              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue transition-colors'
+              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors'
               size={18}
-              strokeWidth={3}
             />
             <input
               type='text'
-              placeholder='Filter by Store or ID...'
-              className='pl-12 pr-6 py-4 bg-white border-4 border-slate-100 rounded-2xl outline-none font-black text-xs uppercase tracking-widest focus:border-brand-blue transition-all w-full md:w-80 shadow-sm'
+              placeholder='FILTER BY STORE NAME...'
+              className='pl-12 pr-6 py-4 bg-white border-4 border-slate-100 rounded-2xl w-80 font-black text-[10px] tracking-widest focus:outline-none focus:border-blue-600 transition-all'
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className='p-4 bg-white border-4 border-slate-100 rounded-2xl text-slate-400 hover:text-brand-blue hover:border-brand-blue transition-all shadow-sm'>
-            <Filter size={20} strokeWidth={3} />
-          </button>
         </div>
       </div>
 
-      {/* Industrial Summary Stats */}
+      {/* Stats Section */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
         <StatCard
           label='Pending Approval'
-          value='02'
+          value={vendors.filter((v) => v.status === 'Pending').length}
           color='orange'
-          icon={<AlertCircle />}
+          Icon={AlertCircle}
         />
         <StatCard
           label='Verified Merchants'
-          value='54'
+          value={vendors.filter((v) => v.status === 'Approved').length}
           color='blue'
-          icon={<BadgeCheck />}
+          Icon={BadgeCheck}
         />
         <StatCard
           label='Risk Flags'
-          value='03'
+          value={vendors.filter((v) => v.status === 'Flagged').length}
           color='red'
-          icon={<ShieldAlert />}
+          Icon={ShieldAlert}
         />
         <StatCard
-          label='Total Catalog'
-          value='1.2k'
+          label='Total Entities'
+          value={vendors.length}
           color='slate'
-          icon={<Package />}
+          Icon={Package}
         />
       </div>
 
-      {/* Vendors Terminal Table */}
-      <div className='bg-white border-4 border-slate-100 rounded-5xl shadow-2xl overflow-hidden'>
+      {/* Table Container - Custom 3rem corners applied here */}
+      <div className='bg-white border-4 border-slate-100 rounded-5xl shadow-sm overflow-hidden'>
         <div className='overflow-x-auto'>
           <table className='w-full text-left border-collapse'>
             <thead>
               <tr className='bg-slate-50/50 border-b-4 border-slate-100'>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400'>
+                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
                   Store Hierarchy
                 </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400'>
-                  Geographic Hub
+                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
+                  Access Credentials
                 </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400'>
-                  Performance Index
-                </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400'>
+                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
                   Compliance
                 </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right'>
+                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-right'>
                   Action Node
                 </th>
               </tr>
             </thead>
             <tbody className='divide-y-4 divide-slate-50'>
-              {VENDORS.filter((v) =>
-                v.name.toLowerCase().includes(searchTerm.toLowerCase())
-              ).map((vendor) => (
-                <tr
-                  key={vendor.id}
-                  className='hover:bg-slate-50/80 transition-all group'
-                >
-                  <td className='px-10 py-8'>
-                    <div className='flex items-center gap-5'>
-                      <div className='w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 border-4 border-transparent group-hover:border-brand-blue/20 group-hover:bg-white group-hover:text-brand-blue transition-all'>
-                        <Store size={28} strokeWidth={2.5} />
+              {filteredVendors.length > 0 ? (
+                filteredVendors.map((vendor) => (
+                  <tr
+                    key={vendor.id}
+                    className='hover:bg-slate-50/80 transition-all group'
+                  >
+                    <td className='px-10 py-8'>
+                      <div className='flex items-center gap-5'>
+                        <div className='w-14 h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-all'>
+                          <Store size={24} strokeWidth={1.5} />
+                        </div>
+                        <div>
+                          <p className='font-black text-slate-900 text-lg uppercase tracking-tighter leading-none'>
+                            {vendor.name}
+                          </p>
+                          <p className='text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest'>
+                            ID: V-{vendor.id} • {vendor.owner}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className='font-black text-brand-slate text-xl tracking-tighter uppercase leading-none'>
-                          {vendor.name}
-                        </p>
-                        <p className='text-[10px] font-black text-slate-300 mt-2 uppercase tracking-widest'>
-                          ID: {vendor.id} • {vendor.owner}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className='px-10 py-8'>
-                    <div className='flex items-center gap-2 text-slate-500 font-black text-xs uppercase tracking-tight'>
-                      <MapPin
-                        size={14}
-                        className='text-brand-orange'
-                        strokeWidth={3}
-                      />
-                      {vendor.location}
-                    </div>
-                  </td>
-                  <td className='px-10 py-8'>
-                    <div className='space-y-1'>
-                      <div className='flex items-center gap-1 font-black text-brand-slate text-lg italic'>
-                        {vendor.performance !== 'N/A'
-                          ? `★ ${vendor.performance}`
-                          : '---'}
-                      </div>
-                      <p className='text-[9px] font-black text-slate-300 uppercase'>
-                        {vendor.gearCount} Units Linked
-                      </p>
-                    </div>
-                  </td>
-                  <td className='px-10 py-8'>
-                    <StatusBadge status={vendor.status} />
-                  </td>
-                  <td className='px-10 py-8'>
-                    <div className='flex items-center justify-end gap-3'>
-                      {vendor.status === 'Pending' ? (
-                        <>
-                          <button className='p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all shadow-sm border-2 border-emerald-100'>
-                            <CheckCircle size={20} strokeWidth={3} />
+                    </td>
+                    <td className='px-10 py-8'>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center gap-2'>
+                          <KeyRound size={12} className='text-blue-500' />
+                          <span className='font-mono text-[10px] font-bold tracking-widest bg-slate-100 px-2 py-1 rounded'>
+                            {showPasswords[vendor.id]
+                              ? vendor.password
+                              : '••••••••••••'}
+                          </span>
+                          <button
+                            onClick={() => togglePassword(vendor.id)}
+                            className='text-slate-400 hover:text-blue-600 transition-colors'
+                          >
+                            {showPasswords[vendor.id] ? (
+                              <EyeOff size={14} />
+                            ) : (
+                              <Eye size={14} />
+                            )}
                           </button>
-                          <button className='p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm border-2 border-red-100'>
-                            <XCircle size={20} strokeWidth={3} />
+                        </div>
+                        <p className='text-[10px] font-black text-slate-900 uppercase tracking-tight'>
+                          {vendor.email}
+                        </p>
+                      </div>
+                    </td>
+                    <td className='px-10 py-8'>
+                      <StatusBadge status={vendor.status} />
+                    </td>
+                    <td className='px-10 py-8 text-right'>
+                      <div className='flex items-center justify-end gap-3'>
+                        {vendor.status === 'Pending' ? (
+                          <div className='flex gap-2'>
+                            <button className='p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all border-2 border-emerald-100'>
+                              <CheckCircle size={20} />
+                            </button>
+                            <button className='p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all border-2 border-red-100'>
+                              <XCircle size={20} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button className='px-5 py-3 bg-slate-900 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 transition-all'>
+                            Profile{' '}
+                            <ArrowUpRight size={14} className='inline ml-1' />
                           </button>
-                        </>
-                      ) : (
-                        <button className='flex items-center gap-3 px-6 py-3 bg-brand-slate text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-blue transition-all shadow-xl shadow-brand-blue/10'>
-                          Internal View <ArrowUpRight size={14} />
-                        </button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className='px-10 py-20 text-center'>
+                    <p className='font-black text-slate-300 text-[10px] uppercase tracking-[0.5em]'>
+                      No entities match your filter
+                    </p>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -266,61 +267,66 @@ export default function VendorManagementPage() {
   )
 }
 
-function StatCard({ label, value, color, icon }: any) {
-  const colors: any = {
-    orange: 'bg-brand-orange/10 border-brand-orange/20 text-brand-orange',
-    blue: 'bg-brand-blue/10 border-brand-blue/20 text-brand-blue',
+function StatCard({ label, value, color, Icon }: StatCardProps) {
+  const colors = {
+    orange: 'bg-orange-50 border-orange-100 text-orange-600',
+    blue: 'bg-blue-50 border-blue-100 text-blue-600',
     red: 'bg-red-50 border-red-100 text-red-600',
-    slate: 'bg-slate-50 border-slate-100 text-brand-slate',
+    slate: 'bg-slate-50 border-slate-100 text-slate-900',
+  }
+  const iconBgs = {
+    orange: 'bg-orange-500',
+    blue: 'bg-blue-600',
+    red: 'bg-red-500',
+    slate: 'bg-slate-900',
   }
 
   return (
     <div
       className={cn(
-        'border-4 p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm transition-transform hover:scale-[1.02]',
+        'border-4 p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm transition-all hover:-translate-y-1',
         colors[color]
       )}
     >
       <div
-        className={cn(
-          'p-4 rounded-2xl text-white shadow-lg',
-          color === 'orange'
-            ? 'bg-brand-orange'
-            : color === 'blue'
-            ? 'bg-brand-blue'
-            : color === 'red'
-            ? 'bg-red-500'
-            : 'bg-brand-slate'
-        )}
+        className={cn('p-4 rounded-2xl text-white shadow-lg', iconBgs[color])}
       >
-        {icon}
+        <Icon size={24} strokeWidth={2.5} />
       </div>
       <div>
-        <p className='text-[10px] font-black uppercase tracking-[0.2em] opacity-70'>
+        <p className='text-[10px] font-black uppercase tracking-[0.3em] opacity-60'>
           {label}
         </p>
-        <p className='text-3xl font-black tracking-tighter mt-1'>{value}</p>
+        <p className='text-3xl font-black tracking-tighter mt-1 italic'>
+          {value.toString().padStart(2, '0')}
+        </p>
       </div>
     </div>
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
+function StatusBadge({ status }: { status: Vendor['status'] }) {
+  const styles: Record<string, string> = {
     Approved: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    Pending: 'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
+    Pending: 'bg-orange-50 text-orange-600 border-orange-100',
     Flagged: 'bg-red-50 text-red-600 border-red-100 animate-pulse',
     Suspended: 'bg-slate-100 text-slate-400 border-slate-200',
   }
-
   return (
     <span
       className={cn(
-        'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2',
-        styles[status]
+        'px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2',
+        styles[status] || styles.Suspended
       )}
     >
       {status}
     </span>
   )
+}
+
+interface StatCardProps {
+  label: string
+  value: number | string
+  color: 'orange' | 'blue' | 'red' | 'slate'
+  Icon: LucideIcon
 }
