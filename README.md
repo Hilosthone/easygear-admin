@@ -1,14 +1,7 @@
-Since you're working on the **Nexus / EasyGear Admin Terminal**, your README should look as professional and "high-tech" as your UI.
-
-Here is a comprehensive README content tailored to your project. You can copy and paste this into a file named `README.md` in your root directory.
-
----
-
 ```markdown
 # 🛡️ EasyGear Admin Portal (Nexus)
 
 Nexus is the centralized **Entity Control Terminal** for EasyGear. It provides high-performance management for vendors, users, and security governance with a high-fidelity, italicized brutalist UI.
-
 
 
 ## 🚀 Core Features
