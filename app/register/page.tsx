@@ -16,17 +16,33 @@ import {
   MapPin,
   AtSign,
   CheckCircle2,
-  Info,
   AlertCircle,
   Loader2,
   X,
 } from 'lucide-react'
 import Link from 'next/link'
 
+// --- Types ---
+interface InputProps {
+  name: string
+  type?: string
+  placeholder: string
+  label: string
+  icon: any
+  isValid: boolean
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onFocus?: () => void
+  onBlur?: (e: any) => void
+  disabled?: boolean
+  errorMsg: string
+  children?: React.ReactNode
+}
+
 // --- Input Component ---
 const ValidatedInput = ({
   name,
-  type,
+  type = 'text',
   placeholder,
   label,
   icon: Icon,
@@ -38,15 +54,13 @@ const ValidatedInput = ({
   disabled,
   errorMsg,
   children,
-}: any) => {
+}: InputProps) => {
   const [touched, setTouched] = useState(false)
   const showError = touched && value !== '' && !isValid
 
   return (
     <div
-      className={`group relative transition-opacity duration-300 ${
-        disabled ? 'opacity-40 select-none' : 'opacity-100'
-      }`}
+      className={`group relative transition-opacity duration-300 ${disabled ? 'opacity-40 select-none' : 'opacity-100'}`}
     >
       <label className='text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-4'>
         {label}
@@ -57,8 +71,8 @@ const ValidatedInput = ({
             value === ''
               ? 'text-slate-300'
               : isValid
-              ? 'text-green-500'
-              : 'text-orange-500'
+                ? 'text-green-500'
+                : 'text-orange-500'
           }`}
           size={18}
         />
@@ -76,11 +90,7 @@ const ValidatedInput = ({
           placeholder={placeholder}
           disabled={disabled}
           className={`w-full pl-12 pr-12 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold text-sm transition-all
-            ${
-              showError
-                ? 'border-red-500 bg-red-50/30'
-                : 'border-slate-50 focus:border-orange-500/20 focus:bg-white'
-            }
+            ${showError ? 'border-red-500 bg-red-50/30' : 'border-slate-50 focus:border-orange-500/20 focus:bg-white'}
             ${disabled ? 'cursor-not-allowed' : 'cursor-text'}`}
         />
         {children}
@@ -117,7 +127,6 @@ export default function RegisterPage() {
     password_confirmation: '',
   })
 
-  // Auto-hide toast after 5 seconds
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 5000)
@@ -146,7 +155,8 @@ export default function RegisterPage() {
       match:
         formData.password === formData.password_confirmation &&
         formData.password !== '',
-      fullname: formData.fullname.trim().split(' ').length >= 2,
+      fullname:
+        formData.fullname.trim().split(/\s+/).filter(Boolean).length >= 2,
     }
   }, [formData, serverEmailError])
 
@@ -157,14 +167,24 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validate.passwordValid || !validate.match || !agreeToTerms) return
+
+    // Safety check: ensure button wasn't clicked while disabled
+    if (!validate.passwordValid || !validate.match || !agreeToTerms || loading)
+      return
 
     setLoading(true)
+
+    // Set a timeout controller to prevent infinite loading
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
     try {
       const baseUrl =
         process.env.NEXT_PUBLIC_API_URL || 'https://api.easygear.ng/api/v1'
+
       const response = await fetch(`${baseUrl}/register`, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
@@ -183,6 +203,7 @@ export default function RegisterPage() {
         }),
       })
 
+      clearTimeout(timeoutId)
       const res = await response.json()
 
       if (response.ok) {
@@ -192,24 +213,27 @@ export default function RegisterPage() {
         })
         setTimeout(() => router.push('/login'), 2000)
       } else {
-        if (res.errors) {
-          const details = Object.values(res.errors).flat().join(', ')
-          setToast({ message: details, type: 'error' })
-          if (res.errors.email) setServerEmailError(formData.email)
-        } else {
-          setToast({
-            message: res.message || 'Registration failed',
-            type: 'error',
-          })
-        }
+        // Handle specific server errors
+        const details = res.errors
+          ? Object.values(res.errors).flat().join(', ')
+          : res.message || 'Registration failed'
+
+        setToast({ message: details, type: 'error' })
+        if (res.errors?.email) setServerEmailError(formData.email)
+        setLoading(false) // Reset loading on error
       }
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      console.error('Registration Error:', error)
+
+      const isTimeout = error.name === 'AbortError'
       setToast({
-        message: 'Network Interruption: Check your connection.',
+        message: isTimeout
+          ? 'Server timeout. Please try again.'
+          : 'Network error. Check your connection.',
         type: 'error',
       })
-    } finally {
-      setLoading(false)
+      setLoading(false) // CRITICAL: Reset loading state if request fails
     }
   }
 
@@ -218,12 +242,7 @@ export default function RegisterPage() {
       {/* --- TOAST NOTIFICATION --- */}
       {toast && (
         <div
-          className={`fixed top-6 right-6 z-100 flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border-2 transition-all duration-500 animate-in slide-in-from-right-full
-          ${
-            toast.type === 'success'
-              ? 'bg-green-600 border-green-400 text-white'
-              : 'bg-slate-900 border-red-500 text-white'
-          }`}
+          className={`fixed top-6 right-6 z-100 flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border-2 transition-all duration-500 animate-in slide-in-from-right-full ${toast.type === 'success' ? 'bg-green-600 border-green-400 text-white' : 'bg-slate-900 border-red-500 text-white'}`}
         >
           {toast.type === 'success' ? (
             <CheckCircle2 size={20} />
@@ -255,6 +274,7 @@ export default function RegisterPage() {
         <div className='bg-white rounded-5xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] overflow-hidden border-8 border-white'>
           <div className='p-10 space-y-8'>
             <form onSubmit={handleRegister} className='space-y-6'>
+              {/* Personal Info */}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                 <ValidatedInput
                   name='fullname'
@@ -278,6 +298,7 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {/* Business Info */}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                 <ValidatedInput
                   name='store_name'
@@ -301,6 +322,7 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {/* Contact Info */}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                 <ValidatedInput
                   name='email'
@@ -312,7 +334,7 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   errorMsg={
                     formData.email === serverEmailError
-                      ? 'This email is already in use'
+                      ? 'Email already in use'
                       : 'Enter a valid email'
                   }
                 />
@@ -328,6 +350,7 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {/* Security */}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-6 relative'>
                 <div className='relative'>
                   <ValidatedInput
@@ -362,14 +385,10 @@ export default function RegisterPage() {
                         ].map((req, i) => (
                           <div
                             key={i}
-                            className={`flex items-center gap-2 text-[10px] font-bold ${
-                              req.met ? 'text-green-400' : 'text-slate-400'
-                            }`}
+                            className={`flex items-center gap-2 text-[10px] font-bold ${req.met ? 'text-green-400' : 'text-slate-400'}`}
                           >
                             <div
-                              className={`w-1 h-1 rounded-full ${
-                                req.met ? 'bg-green-400' : 'bg-slate-700'
-                              }`}
+                              className={`w-1 h-1 rounded-full ${req.met ? 'bg-green-400' : 'bg-slate-700'}`}
                             />{' '}
                             {req.label}
                           </div>
@@ -382,15 +401,12 @@ export default function RegisterPage() {
                   name='password_confirmation'
                   type={showPassword ? 'text' : 'password'}
                   label='Confirm Password'
-                  placeholder={
-                    validate.passwordValid ? '••••••••' : 'Locking...'
-                  }
+                  placeholder='••••••••'
                   icon={ShieldCheck}
                   isValid={validate.match}
                   value={formData.password_confirmation}
                   onChange={handleChange}
                   errorMsg='No match'
-                  disabled={!validate.passwordValid}
                 />
               </div>
 
@@ -398,11 +414,7 @@ export default function RegisterPage() {
                 <button
                   type='button'
                   onClick={() => setAgreeToTerms(!agreeToTerms)}
-                  className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center ${
-                    agreeToTerms
-                      ? 'bg-orange-500 border-orange-500'
-                      : 'border-slate-200 bg-white'
-                  }`}
+                  className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${agreeToTerms ? 'bg-orange-500 border-orange-500' : 'border-slate-200 bg-white'}`}
                 >
                   {agreeToTerms && (
                     <CheckCircle2 size={14} className='text-white' />
@@ -410,7 +422,7 @@ export default function RegisterPage() {
                 </button>
                 <p className='text-[10px] font-bold text-slate-400 uppercase tracking-tight'>
                   I accept the{' '}
-                  <span className='text-orange-500 underline'>
+                  <span className='text-orange-500 underline cursor-pointer'>
                     Vendor Service Agreement
                   </span>
                 </p>
@@ -432,7 +444,7 @@ export default function RegisterPage() {
           <div className='p-6 bg-orange-500 text-center border-t border-orange-500'>
             <Link
               href='/login'
-              className='text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors flex items-center justify-center gap-2'
+              className='text-[10px] font-black uppercase tracking-widest text-slate-100 hover:text-white transition-colors flex items-center justify-center gap-2'
             >
               <ArrowLeft size={14} strokeWidth={3} /> Return to Login
             </Link>

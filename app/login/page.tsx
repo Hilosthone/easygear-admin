@@ -15,6 +15,7 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
+  LifeBuoy, // Icon for recovery
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 
@@ -44,7 +45,6 @@ export default function LoginPage() {
     const password = formData.get('password') as string
 
     // --- ADMIN BYPASS LOGIC ---
-    // If logging in as admin with your specific credentials, skip the API call.
     if (
       role === 'admin' &&
       email === 'admin@easygear.ng' &&
@@ -139,7 +139,7 @@ export default function LoginPage() {
             'fixed top-6 right-6 z-100 flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border-2 transition-all duration-500 animate-in slide-in-from-right-full',
             toast.type === 'success'
               ? 'bg-green-600 border-green-400 text-white'
-              : 'bg-slate-900 border-red-500 text-white'
+              : 'bg-slate-900 border-red-500 text-white',
           )}
         >
           {toast.type === 'success' ? (
@@ -175,7 +175,7 @@ export default function LoginPage() {
                 'flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all',
                 role === 'admin'
                   ? 'bg-white text-blue-600 shadow-xl'
-                  : 'text-slate-400'
+                  : 'text-slate-400',
               )}
             >
               <ShieldCheck size={18} strokeWidth={3} /> Admin
@@ -187,7 +187,7 @@ export default function LoginPage() {
                 'flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all',
                 role === 'vendor'
                   ? 'bg-white text-orange-500 shadow-xl'
-                  : 'text-slate-400'
+                  : 'text-slate-400',
               )}
             >
               <Store size={18} strokeWidth={3} /> Vendor
@@ -195,6 +195,7 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className='p-10 pt-4 space-y-6'>
+            {/* Email Field */}
             <div className='space-y-2'>
               <label className='text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2'>
                 Identity Email
@@ -202,10 +203,10 @@ export default function LoginPage() {
               <div className='relative group'>
                 <Mail
                   className={cn(
-                    'absolute left-5 top-1/2 -translate-y-1/2',
+                    'absolute left-5 top-1/2 -translate-y-1/2 transition-colors',
                     role === 'admin'
                       ? 'text-slate-300 group-focus-within:text-blue-600'
-                      : 'text-slate-300 group-focus-within:text-orange-500'
+                      : 'text-slate-300 group-focus-within:text-orange-500',
                   )}
                   size={20}
                 />
@@ -213,25 +214,36 @@ export default function LoginPage() {
                   name='email'
                   type='email'
                   required
-                  placeholder='admin@easygear.ng'
+                  placeholder='user@gmail.com'
                   className='w-full pl-14 pr-6 py-5 bg-slate-50 border-4 border-transparent rounded-3xl outline-none font-bold text-sm focus:bg-white transition-all'
                 />
               </div>
             </div>
 
+            {/* Password Field */}
             <div className='space-y-2'>
-              <div className='flex justify-between px-2'>
+              <div className='flex justify-between px-2 items-center'>
                 <label className='text-[10px] font-black uppercase tracking-widest text-slate-400'>
                   Security Key
                 </label>
+                {/* FORGOT PASSWORD LINK */}
+                <Link
+                  href='/forgot-password'
+                  className={cn(
+                    'text-[9px] font-black uppercase tracking-widest transition-colors hover:underline',
+                    role === 'admin' ? 'text-blue-600' : 'text-orange-500',
+                  )}
+                >
+                  Forgot Key?
+                </Link>
               </div>
               <div className='relative group'>
                 <Lock
                   className={cn(
-                    'absolute left-5 top-1/2 -translate-y-1/2',
+                    'absolute left-5 top-1/2 -translate-y-1/2 transition-colors',
                     role === 'admin'
                       ? 'text-slate-300 group-focus-within:text-blue-600'
-                      : 'text-slate-300 group-focus-within:text-orange-500'
+                      : 'text-slate-300 group-focus-within:text-orange-500',
                   )}
                   size={20}
                 />
@@ -247,29 +259,45 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className='absolute right-5 top-1/2 -translate-y-1/2 text-slate-300'
                 >
-                  <Eye size={20} />
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </div>
 
-            <button
-              disabled={loading}
-              className={cn(
-                'w-full py-6 rounded-full font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95',
-                role === 'admin'
-                  ? 'bg-blue-600 shadow-blue-600/20'
-                  : 'bg-orange-500 shadow-orange-500/20'
+            <div className='space-y-4'>
+              <button
+                disabled={loading}
+                className={cn(
+                  'w-full py-6 rounded-full font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95',
+                  role === 'admin'
+                    ? 'bg-blue-600 shadow-blue-600/20'
+                    : 'bg-orange-500 shadow-orange-500/20',
+                )}
+              >
+                {loading ? (
+                  <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
+                ) : (
+                  <>
+                    <span>Unlock Portal</span>
+                    <ChevronRight size={18} strokeWidth={4} />
+                  </>
+                )}
+              </button>
+
+              {role === 'vendor' && (
+                <Link
+                  href='/register'
+                  className='w-full py-5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 border-4 border-slate-100 flex items-center justify-center gap-3 transition-all hover:bg-slate-50 active:scale-95'
+                >
+                  <UserPlus
+                    size={16}
+                    className='text-orange-500'
+                    strokeWidth={3}
+                  />
+                  <span>Join as Vendor</span>
+                </Link>
               )}
-            >
-              {loading ? (
-                <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-              ) : (
-                <>
-                  <span>Unlock Portal</span>
-                  <ChevronRight size={18} strokeWidth={4} />
-                </>
-              )}
-            </button>
+            </div>
           </form>
         </div>
       </div>
