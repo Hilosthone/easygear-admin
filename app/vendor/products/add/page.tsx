@@ -84,7 +84,7 @@ export default function AddProductPage() {
       {/* 3. DYNAMIC NOTIFICATIONS */}
       {state?.error && (
         <div className='mb-6 p-4 bg-white border-l-8 border-red-500 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center gap-4 shadow-xl shadow-red-500/10 animate-in slide-in-from-top-4'>
-          <div className='bg-red-500 text-white rounded-full p-1.5 flex-shrink-0'>
+          <div className='bg-red-500 text-white rounded-full p-1.5 shrink-0'>
             <Hash size={12} strokeWidth={4} />
           </div>
           <span className='flex-1'>{state.error}</span>
@@ -129,7 +129,7 @@ export default function AddProductPage() {
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-10'>
           {/* LEFT COLUMN: IMAGE */}
           <div className='lg:col-span-5'>
-            <div className='relative group aspect-square bg-slate-50 rounded-[32px] border-4 border-dashed border-slate-100 flex items-center justify-center overflow-hidden transition-all hover:border-orange-500/30 cursor-pointer shadow-inner'>
+            <div className='relative group aspect-square bg-slate-50 rounded-4xl border-4 border-dashed border-slate-100 flex items-center justify-center overflow-hidden transition-all hover:border-orange-500/30 cursor-pointer shadow-inner'>
               <input
                 type='file'
                 name='images[]'
@@ -286,7 +286,7 @@ export default function AddProductPage() {
             name='description'
             rows={4}
             required
-            className='w-full p-8 bg-slate-50 rounded-[32px] border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm resize-none transition-all'
+            className='w-full p-8 bg-slate-50 rounded-4xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm resize-none transition-all'
             placeholder='Detail technical specs, material, and usage instructions...'
           />
         </div>
@@ -294,7 +294,7 @@ export default function AddProductPage() {
         <button
           disabled={isPending || !vendorId}
           type='submit'
-          className='bg-orange-500 text-white w-full py-7 rounded-[32px] font-black uppercase tracking-[0.3em] text-xs shadow-2xl shadow-orange-500/40 hover:bg-slate-900 hover:shadow-none transition-all flex items-center justify-center gap-4 disabled:opacity-50 group'
+          className='bg-orange-500 text-white w-full py-7 rounded-4xl font-black uppercase tracking-[0.3em] text-xs shadow-2xl shadow-orange-500/40 hover:bg-slate-900 hover:shadow-none transition-all flex items-center justify-center gap-4 disabled:opacity-50 group'
         >
           {isPending ? (
             <Loader2 className='animate-spin' size={24} />
