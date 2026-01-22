@@ -4,124 +4,119 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 
 /**
- * 1. CREATE PRODUCT
- * Standard multipart/form-data registration
+ * 1. CREATE PRODUCT ACTION
  */
 export async function createProduct(prevState: any, formData: FormData) {
   const cookieStore = await cookies()
   const token = cookieStore.get('auth_token')?.value
 
-  if (!token) return { error: 'Session expired. Please log in again.' }
+  if (!token) return { error: 'Session expired. Please login again.' }
 
   try {
     const baseUrl = 'https://api.easygear.ng/api/v1'
-    const targetUrl = `${baseUrl}/products`
-    const apiData = new FormData()
 
-    const vendorId = formData.get('vendor_id') as string
-    if (!vendorId) return { error: 'Vendor Identity missing.' }
+    /** * FIX: Added trailing slash. Laravel often redirects /products
+     * to /products/, converting POST to GET in the process.
+     */
+    const endpoint = `${baseUrl}/products/`
 
-    apiData.append('vendor_id', vendorId)
-    apiData.append('user_id', vendorId)
-    apiData.append('name', formData.get('name') as string)
-    apiData.append('price', formData.get('price') as string)
-    apiData.append('quantity', formData.get('quantity') as string)
-    apiData.append('category_id', formData.get('category_id') as string)
-    apiData.append('description', formData.get('description') as string)
+    const apiPayload = new FormData()
 
-    const shortDesc =
+    // Mapping fields
+    apiPayload.append('vendor_id', formData.get('vendor_id') as string)
+    apiPayload.append('name', formData.get('name') as string)
+    apiPayload.append('sku', formData.get('sku') as string)
+    apiPayload.append('category_id', formData.get('category_id') as string)
+    apiPayload.append('price', formData.get('price') as string)
+    apiPayload.append('description', formData.get('description') as string)
+
+    // Hidden logic fields required by the API structure
+    apiPayload.append(
+      'short_description',
       (formData.get('short_description') as string) ||
-      (formData.get('name') as string).substring(0, 50)
-    apiData.append('short_description', shortDesc)
-
-    const sku =
-      (formData.get('sku') as string) ||
-      `EG-${Math.random().toString(36).toUpperCase().substring(2, 7)}`
-    apiData.append('sku', sku)
-    apiData.append('weight', (formData.get('weight') as string) || '0')
-    apiData.append(
-      'dimensions',
-      (formData.get('dimensions') as string) || 'N/A',
+        (formData.get('name') as string),
     )
-    apiData.append('status', 'active')
-    apiData.append('is_featured', '0')
+    apiPayload.append('quantity', (formData.get('quantity') as string) || '1')
+    apiPayload.append('weight', '0.5')
+    apiPayload.append('dimensions', 'N/A')
+    apiPayload.append('status', 'active')
+    apiPayload.append('is_active', '1')
+    apiPayload.append('is_featured', '0')
 
-    const imageFiles = formData.getAll('images[]')
-    imageFiles.forEach((file) => {
-      if (file instanceof File && file.size > 0)
-        apiData.append('images[]', file)
+    // Handling image upload
+    const images = formData.getAll('images[]')
+    images.forEach((file) => {
+      if (file instanceof File && file.size > 0) {
+        apiPayload.append('images[]', file)
+      }
     })
 
-    const response = await fetch(targetUrl, {
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-      body: apiData,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        // Important: Let the browser set the Content-Type for FormData
+      },
+      body: apiPayload,
     })
 
-    if (!response.ok) {
-      const result = await response.json()
-      return { error: result.message || 'Registration failed' }
+    const result = await response.json()
+
+    if (response.ok) {
+      revalidatePath('/vendor/products')
+      return { success: true, error: null }
     }
 
-    revalidatePath('/vendor/products')
-    return { success: true }
+    // Capture Laravel validation errors
+    const errorMessage = result.errors
+      ? Object.values(result.errors).flat().join(', ')
+      : result.message || 'Server rejected the request'
+
+    return { success: false, error: errorMessage }
   } catch (err) {
-    console.error('CREATE_ERROR:', err)
-    return { error: 'Network communication failure.' }
+    console.error('CREATE_PRODUCT_ERROR:', err)
+    return { success: false, error: 'Connection to server failed.' }
   }
 }
 
 /**
- * 2. DELETE PRODUCT
- * Uses numeric ID and Method Spoofing.
- * Even if the frontend shows slugs, the "Destroy" route typically requires the ID.
+ * 2. DELETE PRODUCT ACTION
  */
 export async function deleteProduct(productId: number) {
   const cookieStore = await cookies()
   const token = cookieStore.get('auth_token')?.value
 
-  if (!token) return { error: 'Session expired.' }
+  if (!token) return { error: 'Auth token missing.' }
 
   try {
     const baseUrl = 'https://api.easygear.ng/api/v1'
 
-    // Create FormData for Laravel method spoofing
-    const apiData = new FormData()
-    apiData.append('_method', 'DELETE')
+    // Using FormData for method spoofing which is safer for some PHP backends
+    const apiPayload = new FormData()
+    apiPayload.append('_method', 'DELETE')
 
-    const response = await fetch(`${baseUrl}/products/${productId}`, {
-      method: 'POST', // POST is the wrapper for spoofing
+    const res = await fetch(`${baseUrl}/products/${productId}`, {
+      method: 'POST',
       headers: {
-        Accept: 'application/json',
         Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
       },
-      body: apiData,
+      body: apiPayload,
     })
 
-    if (response.ok) {
+    if (res.ok) {
       revalidatePath('/vendor/products')
       return { success: true }
     }
 
-    // Secondary Fallback: Direct DELETE
-    if (response.status === 405) {
-      const fallback = await fetch(`${baseUrl}/products/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (fallback.ok) {
-        revalidatePath('/vendor/products')
-        return { success: true }
-      }
+    const errorData = await res.json().catch(() => ({}))
+    return {
+      success: false,
+      error: errorData.message || 'The server refused to delete this product.',
     }
-
-    const result = await response.json()
-    return { error: result.message || 'Deletion rejected by server.' }
   } catch (err) {
-    console.error('DELETE_ERROR:', err)
-    return { error: 'Network communication failure.' }
+    console.error('DELETE_PRODUCT_ERROR:', err)
+    return { success: false, error: 'Network communication failure.' }
   }
 }
