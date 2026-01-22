@@ -105,7 +105,7 @@ export default function AddProductPage() {
         href='/vendor/products'
         className='flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-orange-500 mb-8 transition-all'
       >
-        <ArrowLeft size={14} strokeWidth={3} /> Back to My Vault
+        <ArrowLeft size={14} strokeWidth={3} /> Back to My Products
       </Link>
 
       <div className='mb-10'>
