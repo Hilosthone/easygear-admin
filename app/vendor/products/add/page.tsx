@@ -110,7 +110,7 @@ export default function AddProductPage() {
 
       <div className='mb-10'>
         <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter'>
-          Register<span className='text-orange-500'>.</span>Asset
+          Register<span className='text-orange-500'>.</span>Products
         </h1>
         <p className='text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mt-2'>
           Authorized Vendor ID:{' '}

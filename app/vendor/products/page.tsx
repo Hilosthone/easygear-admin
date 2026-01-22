@@ -131,7 +131,7 @@ export default function MyGymInventory() {
       <div className='flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12'>
         <div>
           <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter'>
-            Vault<span className='text-orange-500'>.</span>Inventory
+            My<span className='text-orange-500'>.</span>Products
           </h1>
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
@@ -161,7 +161,7 @@ export default function MyGymInventory() {
             type='text'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='Search assets by name or SKU...'
+            placeholder='Search products by name ...'
             className='w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-orange-500 outline-none font-bold text-sm transition-all'
           />
         </div>
@@ -218,7 +218,7 @@ export default function MyGymInventory() {
                     >
                       <td className='p-6'>
                         <div className='flex items-center gap-4'>
-                          <div className='w-14 h-14 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 flex-shrink-0'>
+                          <div className='w-14 h-14 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 shrink-0'>
                             <img
                               src={
                                 item.primary_image ||
