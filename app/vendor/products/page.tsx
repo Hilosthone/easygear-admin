@@ -1,362 +1,338 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Dumbbell,
   Plus,
   Search,
   Filter,
-  Edit3,
-  Trash2,
-  X,
-  ShieldAlert,
-  Check,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
   RefreshCcw,
-  Undo2,
+  Dumbbell,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
-
-const INITIAL_GYM_EQUIPMENT = [
-  {
-    id: 'GYM-101',
-    name: 'Concept2 RowErg',
-    category: 'Cardio',
-    price: 15000,
-    stock: 4,
-    status: 'available',
-  },
-  {
-    id: 'GYM-102',
-    name: 'Rogue RML-390F Power Rack',
-    category: 'Strength',
-    price: 25000,
-    stock: 1,
-    status: 'low-stock',
-  },
-  {
-    id: 'GYM-103',
-    name: 'Theragun PRO G5',
-    category: 'Recovery',
-    price: 5000,
-    stock: 8,
-    status: 'available',
-  },
-  {
-    id: 'GYM-104',
-    name: 'Peloton Bike+',
-    category: 'Cardio',
-    price: 35000,
-    stock: 0,
-    status: 'out-of-stock',
-  },
-  {
-    id: 'GYM-105',
-    name: 'Olympic Bumper Plate Set (140kg)',
-    category: 'Strength',
-    price: 12000,
-    stock: 12,
-    status: 'available',
-  },
-  {
-    id: 'GYM-106',
-    name: 'Assault AirBike Classic',
-    category: 'Cardio',
-    price: 18000,
-    stock: 2,
-    status: 'available',
-  },
-]
+import { useDebounce } from '@/app/vendor/hooks/useDebounce'
+import { deleteProduct } from './add/actions'
 
 export default function MyGymInventory() {
-  const [products, setProducts] = useState(INITIAL_GYM_EQUIPMENT)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [editItem, setEditItem] = useState<
-    (typeof INITIAL_GYM_EQUIPMENT)[0] | null
-  >(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [countdown, setCountdown] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('All Categories')
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const categories = [
-    'All Categories',
-    ...Array.from(new Set(INITIAL_GYM_EQUIPMENT.map((p) => p.category))),
-  ]
+  const [currentPage, setCurrentPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const debouncedSearch = useDebounce(searchQuery, 500)
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || 'https://api.easygear.ng/api/v1'
+
+  // 1. FETCH CATEGORIES (Dynamic for filtering)
+  useEffect(() => {
+    async function getCats() {
+      try {
+        const res = await fetch(`${baseUrl}/categories`)
+        const json = await res.json()
+        if (json.success) {
+          const catData = json.data?.data || json.data || []
+          setCategories(catData)
+        }
+      } catch (e) {
+        console.error('Category Sync Error', e)
+      }
+    }
+    getCats()
+  }, [baseUrl])
+
+  // 2. FETCH INVENTORY (Live data from API)
+  const fetchInventory = useCallback(
+    async (page: number = 1) => {
+      setLoading(true)
+      try {
+        const token =
+          localStorage.getItem('auth_token') ||
+          localStorage.getItem('easygear_token')
+        const userString = localStorage.getItem('user')
+        const user = userString ? JSON.parse(userString) : null
+
+        // Dynamic ID selection based on session
+        const myId = user?.vendor_id || user?.id
+
+        if (!myId || !token) {
+          setProducts([])
+          setLoading(false)
+          return
+        }
+
+        const params = new URLSearchParams({
+          page: page.toString(),
+          search: debouncedSearch,
+          category_id: selectedCategory,
+          vendor_id: String(myId),
+          _t: Date.now().toString(), // Prevents browser caching
+        })
+
+        const res = await fetch(`${baseUrl}/products?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        })
+        const json = await res.json()
+
+        if (json.success) {
+          const items = json.data?.data || json.data || []
+          setProducts(items)
+          setLastPage(json.data?.last_page || 1)
+          setCurrentPage(json.data?.current_page || page)
+        }
+      } catch (err) {
+        console.error('Inventory Sync Error:', err)
+        setProducts([])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [debouncedSearch, selectedCategory, baseUrl],
+  )
+
+  /**
+   * 3. HANDLE DELETE
+   * Uses numeric ID to match standard Laravel 'destroy' routes.
+   */
+  const handleDelete = async (id: number) => {
+    if (!id) return
+    if (
+      !confirm(
+        'Are you sure you want to remove this asset from your inventory?',
+      )
+    )
+      return
+
+    setLoading(true)
+    const res = await deleteProduct(id)
+
+    if (res.success) {
+      // Increments refreshKey to trigger the useEffect re-fetch
+      setRefreshKey((prev) => prev + 1)
+    } else {
+      alert(res.error || 'Failed to delete asset')
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let timer: NodeJS.Timeout
-    if (countdown !== null && countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-    } else if (countdown === 0) {
-      completeDeletion()
-    }
-    return () => clearTimeout(timer)
-  }, [countdown])
+    fetchInventory(currentPage)
+  }, [
+    currentPage,
+    debouncedSearch,
+    selectedCategory,
+    refreshKey,
+    fetchInventory,
+  ])
 
-  const startDeletionSequence = () => setCountdown(3)
-  const abortDeletion = () => {
-    setCountdown(null)
-    setDeleteId(null)
-  }
-
-  const completeDeletion = () => {
-    setIsProcessing(true)
-    setTimeout(() => {
-      setProducts((prev) => prev.filter((p) => p.id !== deleteId))
-      setDeleteId(null)
-      setCountdown(null)
-      setIsProcessing(false)
-    }, 500)
-  }
-
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.id.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCategory =
-        categoryFilter === 'All Categories' ||
-        product.category === categoryFilter
-      return matchesSearch && matchesCategory
-    })
-  }, [products, searchQuery, categoryFilter])
-
-  const updateStatus = (newStatus: string) => {
-    if (!editItem) return
-    setIsProcessing(true)
-    setTimeout(() => {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editItem.id ? { ...p, status: newStatus } : p
-        )
-      )
-      setIsProcessing(false)
-      setEditItem(null)
-    }, 600)
-  }
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearch, selectedCategory])
 
   return (
-    <div className='p-6 md:p-10 max-w-7xl mx-auto relative'>
-      {/* DELETE MODAL */}
-      {deleteId && (
-        <div className='fixed inset-0 z-60 flex items-center justify-center p-6 bg-brand-slate/80 backdrop-blur-md animate-in fade-in duration-300'>
-          <div className='bg-white w-full max-w-md rounded-5xl border-4 border-slate-100 shadow-2xl overflow-hidden'>
-            <div className='p-10 text-center'>
-              <div
-                className={cn(
-                  'w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 transition-all duration-500',
-                  countdown !== null
-                    ? 'bg-red-500 text-white scale-110'
-                    : 'bg-red-50 text-red-500'
-                )}
-              >
-                {countdown !== null ? (
-                  <span className='text-4xl font-black'>{countdown}</span>
-                ) : (
-                  <ShieldAlert size={48} strokeWidth={2.5} />
-                )}
-              </div>
-              <h3 className='text-xl font-black text-brand-slate uppercase'>
-                {countdown !== null
-                  ? 'Deleting Asset...'
-                  : 'Confirm Termination'}
-              </h3>
-              <p className='text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-2 px-4 italic'>
-                PURGING: {products.find((p) => p.id === deleteId)?.name}
-              </p>
-            </div>
-            <div className='flex border-t-4 border-slate-50'>
-              <button
-                onClick={abortDeletion}
-                className='flex-1 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 flex items-center justify-center gap-2'
-              >
-                <Undo2 size={14} /> {countdown !== null ? 'Abort' : 'Cancel'}
-              </button>
-              {countdown === null && (
-                <button
-                  onClick={startDeletionSequence}
-                  className='flex-1 py-6 text-[10px] font-black uppercase bg-red-500 text-white hover:bg-red-600 transition-colors'
-                >
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT MODAL */}
-      {editItem && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-slate/60 backdrop-blur-sm'>
-          <div className='bg-white w-full max-w-md rounded-5xl border-4 border-slate-100 shadow-2xl overflow-hidden p-8'>
-            <div className='flex items-center justify-between mb-6'>
-              <h3 className='text-lg font-black text-brand-slate uppercase italic'>
-                Update Status
-              </h3>
-              <button
-                onClick={() => setEditItem(null)}
-                className='text-slate-300 hover:text-brand-orange'
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className='space-y-3'>
-              {['available', 'low-stock', 'out-of-stock'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => updateStatus(status)}
-                  className={cn(
-                    'w-full p-4 rounded-2xl border-3 text-left transition-all flex items-center justify-between',
-                    editItem.status === status
-                      ? 'border-brand-orange bg-brand-orange/5'
-                      : 'border-slate-50 hover:border-slate-200'
-                  )}
-                >
-                  <span className='text-[11px] font-black uppercase text-brand-slate'>
-                    {status.replace('-', ' ')}
-                  </span>
-                  {editItem.status === status && (
-                    <Check
-                      size={16}
-                      className='text-brand-orange'
-                      strokeWidth={4}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className='flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10'>
+    <div className='p-6 md:p-10 max-w-7xl mx-auto relative min-h-screen'>
+      {/* HEADER */}
+      <div className='flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12'>
         <div>
-          <h1 className='text-4xl font-black text-brand-slate italic uppercase tracking-tighter'>
-            Iron<span className='text-brand-orange'>.</span>Assets
+          <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter'>
+            My<span className='text-orange-500'>.</span>Products
           </h1>
-          <p className='text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2'>
-            Warehouse Mission Control
-          </p>
+          <div className='flex items-center gap-4 mt-2'>
+            <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              className='text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 hover:text-orange-500 transition-colors'
+            >
+              <RefreshCcw size={12} className={cn(loading && 'animate-spin')} />
+              Force System Sync
+            </button>
+          </div>
         </div>
+
         <Link
           href='/vendor/products/add'
-          className='bg-brand-orange text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all flex items-center gap-3'
+          className='bg-orange-500 text-white px-10 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:bg-slate-900 transition-all flex items-center gap-3'
         >
-          <Plus size={18} strokeWidth={3} /> Register Equipment
+          <Plus size={20} strokeWidth={3} /> Register New Product
         </Link>
       </div>
 
-      {/* Filter Bar */}
-      <div className='bg-white p-4 rounded-4xl border-4 border-slate-100 mb-8 flex flex-col md:flex-row gap-4'>
-        <div className='relative flex-1'>
+      {/* SEARCH & FILTERS */}
+      <div className='bg-white p-5 rounded-4xl border-4 border-slate-100 mb-10 flex flex-col md:flex-row gap-5 shadow-sm'>
+        <div className='relative flex-1 group'>
           <Search
-            className='absolute left-5 top-1/2 -translate-y-1/2 text-slate-300'
-            size={18}
+            className='absolute left-6 top-1/2 -translate-y-1/2 text-slate-300'
+            size={20}
           />
           <input
             type='text'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='Search assets...'
-            className='w-full pl-14 pr-12 py-4 bg-slate-50 border-3 border-transparent rounded-2xl focus:bg-white focus:border-brand-orange outline-none font-bold text-sm transition-all'
+            placeholder='Search live inventory...'
+            className='w-full pl-16 pr-12 py-5 bg-slate-50 border-3 border-transparent rounded-2xl focus:bg-white focus:border-orange-500 outline-none font-bold text-sm transition-all'
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className='px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase outline-none'
-        >
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
+
+        <div className='relative min-w-50'>
+          <Filter
+            className='absolute left-6 top-1/2 -translate-y-1/2 text-slate-400'
+            size={16}
+          />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className='w-full pl-14 pr-10 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase appearance-none cursor-pointer'
+          >
+            <option value=''>All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className='bg-white rounded-5xl border-4 border-slate-100 shadow-xl overflow-hidden'>
+      {/* TABLE */}
+      <div className='bg-white rounded-[40px] border-4 border-slate-100 shadow-2xl overflow-hidden relative min-h-100'>
+        {loading && (
+          <div className='absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm'>
+            <Loader2 className='animate-spin text-orange-500' size={40} />
+            <p className='text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mt-4'>
+              Syncing Vault...
+            </p>
+          </div>
+        )}
+
         <div className='overflow-x-auto'>
-          <table className='w-full text-left border-collapse'>
-            <thead>
-              <tr className='border-b-4 border-slate-50'>
-                <th className='px-8 py-6 text-[10px] font-black uppercase text-slate-400'>
-                  Equipment
-                </th>
-                <th className='px-8 py-6 text-[10px] font-black uppercase text-slate-400'>
-                  Type
-                </th>
-                <th className='px-8 py-6 text-[10px] font-black uppercase text-slate-400'>
-                  Status
-                </th>
-                <th className='px-8 py-6 text-[10px] font-black uppercase text-slate-400 text-right'>
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className='divide-y-2 divide-slate-50'>
-              {filteredProducts.map((item) => (
-                <tr
-                  key={item.id}
-                  className='group hover:bg-slate-50/50 transition-colors'
-                >
-                  <td className='px-8 py-6'>
-                    <div className='flex items-center gap-4'>
-                      <div className='w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-brand-orange transition-all'>
-                        <Dumbbell size={24} />
+          {products.length > 0 ? (
+            <table className='w-full text-left border-collapse'>
+              <thead className='bg-slate-50 border-b-2 border-slate-100'>
+                <tr>
+                  <th className='p-6 text-[10px] font-black uppercase text-slate-400'>
+                    Asset
+                  </th>
+                  <th className='p-6 text-[10px] font-black uppercase text-slate-400'>
+                    Category
+                  </th>
+                  <th className='p-6 text-[10px] font-black uppercase text-slate-400'>
+                    Stock
+                  </th>
+                  <th className='p-6 text-[10px] font-black uppercase text-slate-400'>
+                    Price
+                  </th>
+                  <th className='p-6 text-[10px] font-black uppercase text-slate-400 text-right'>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((item) => (
+                  <tr
+                    key={item.id}
+                    className='group hover:bg-slate-50/50 transition-all border-b border-slate-50'
+                  >
+                    <td className='p-6 flex items-center gap-4'>
+                      <div className='w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200'>
+                        <img
+                          src={
+                            item.image_url ||
+                            item.images?.[0]?.url ||
+                            '/placeholder-gym.png'
+                          }
+                          alt=''
+                          className='w-full h-full object-cover'
+                          onError={(e) => {
+                            ;(e.target as HTMLImageElement).src =
+                              '/placeholder-gym.png'
+                          }}
+                        />
                       </div>
-                      <div>
-                        <p className='text-sm font-black text-brand-slate uppercase tracking-tight'>
+                      <div className='flex flex-col'>
+                        <span className='font-black text-slate-900 uppercase text-xs italic'>
                           {item.name}
-                        </p>
-                        <p className='text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1'>
-                          ID: {item.id}
-                        </p>
+                        </span>
+                        <span className='text-[8px] text-slate-400 font-mono'>
+                          {item.sku || `ID: ${item.id}`}
+                        </span>
                       </div>
-                    </div>
-                  </td>
-                  <td className='px-8 py-6'>
-                    <span className='text-[10px] font-black text-slate-500 uppercase bg-slate-100 px-3 py-1.5 rounded-lg'>
-                      {item.category}
-                    </span>
-                  </td>
-                  <td className='px-8 py-6'>
-                    <div
-                      className={cn(
-                        'px-4 py-2 rounded-xl border-2 font-black text-[9px] uppercase tracking-widest w-fit',
-                        item.status === 'available'
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                          : item.status === 'low-stock'
-                          ? 'bg-amber-50 text-amber-600 border-amber-100'
-                          : 'bg-red-50 text-red-600 border-red-100'
-                      )}
-                    >
-                      {item.status.replace('-', ' ')}
-                    </div>
-                  </td>
-                  <td className='px-8 py-6 text-right'>
-                    <div className='flex items-center justify-end gap-2'>
+                    </td>
+                    <td className='p-6'>
+                      <span className='px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black text-slate-500 uppercase'>
+                        {item.category?.name || 'General'}
+                      </span>
+                    </td>
+                    <td className='p-6 font-bold text-sm text-slate-600'>
+                      {item.quantity} units
+                    </td>
+                    <td className='p-6 font-black text-orange-600 text-sm'>
+                      ₦{Number(item.price).toLocaleString()}
+                    </td>
+                    <td className='p-6 text-right'>
                       <button
-                        onClick={() => setEditItem(item)}
-                        className='p-2.5 text-slate-400 hover:text-brand-blue transition-all'
-                      >
-                        <Edit3 size={18} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(item.id)}
-                        className='p-2.5 text-slate-400 hover:text-red-500 transition-all'
+                        onClick={() => handleDelete(item.id)} // Using Numeric ID
+                        className='p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all'
                       >
                         <Trash2 size={18} />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            !loading && (
+              <div className='flex flex-col items-center justify-center p-20 text-center'>
+                <Dumbbell className='text-slate-100 mb-6' size={60} />
+                <h3 className='text-slate-900 font-black uppercase italic text-lg'>
+                  Vault Empty
+                </h3>
+                <p className='text-[10px] font-black uppercase text-slate-400 mt-2'>
+                  Your registered products will appear here.
+                </p>
+                <Link
+                  href='/vendor/products/add'
+                  className='mt-8 text-orange-500 font-black uppercase text-[10px] tracking-widest border-b-2 border-orange-500 pb-1'
+                >
+                  + Add Your First Product
+                </Link>
+              </div>
+            )
+          )}
         </div>
+
+        {/* PAGINATION */}
+        {products.length > 0 && lastPage > 1 && (
+          <div className='p-6 bg-slate-50 border-t-4 border-slate-100 flex items-center justify-between'>
+            <button
+              disabled={currentPage === 1 || loading}
+              onClick={() => setCurrentPage((prev) => prev - 1)}
+              className='px-6 py-3 rounded-xl bg-white border-2 border-slate-200 disabled:opacity-30'
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className='text-[10px] font-black uppercase text-slate-400'>
+              Page {currentPage} of {lastPage}
+            </span>
+            <button
+              disabled={currentPage === lastPage || loading}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              className='px-6 py-3 rounded-xl bg-white border-2 border-slate-200 disabled:opacity-30'
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

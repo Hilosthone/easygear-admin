@@ -1,317 +1,324 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useActionState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createProduct } from './actions'
 import {
-  Plus,
-  Camera,
-  ArrowLeft,
-  Tag,
+  Upload,
+  Dumbbell,
   Layers,
   DollarSign,
-  Info,
-  CheckCircle2,
-  Cpu,
-  Activity,
-  Eye,
-  ShieldCheck,
-  AlertCircle,
   Loader2,
-  Dumbbell,
-  Trash2,
+  ArrowLeft,
+  Hash,
+  AlignLeft,
 } from 'lucide-react'
-import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
 
-export default function AddGymGear() {
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+interface Category {
+  id: number
+  name: string
+}
 
-  const [form, setForm] = useState({
-    name: '',
-    category: 'Strength',
-    price: '',
-    stock: '1',
-    specs: '',
-  })
+export default function AddProductPage() {
+  const router = useRouter()
+  const [state, formAction, isPending] = useActionState(createProduct, null)
 
-  // Gym Specific Categories
-  const gymClasses = [
-    'Strength',
-    'Cardio',
-    'Recovery',
-    'Functional',
-    'Storage',
-    'Accessories',
-  ]
+  const [categories, setCategories] = useState<Category[]>([])
+  const [catLoading, setCatLoading] = useState(true)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [vendorId, setVendorId] = useState<string>('')
 
-  // Image Upload Logic
+  // 1. ROBUST VENDOR ID RETRIEVAL
+  useEffect(() => {
+    const userString = localStorage.getItem('user')
+    if (userString) {
+      try {
+        const user = JSON.parse(userString)
+        // Check all common ID variants to ensure we don't get an empty string
+        const id = user.vendor_id || user.id || user.user_id
+        if (id) {
+          setVendorId(id.toString())
+          console.log('✅ Vendor ID locked:', id)
+        } else {
+          console.warn(
+            '⚠️ User found but no ID field (id, vendor_id, or user_id) exists.',
+          )
+        }
+      } catch (err) {
+        console.error('❌ Failed to parse user data from localStorage', err)
+      }
+    }
+
+    async function fetchCats() {
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'https://api.easygear.ng/api/v1'
+        const res = await fetch(`${baseUrl}/categories`)
+        const json = await res.json()
+        if (json.success) {
+          // Handles both direct arrays and nested data objects
+          setCategories(json.data?.data || json.data || [])
+        }
+      } catch (err) {
+        console.error('Failed to load categories', err)
+      } finally {
+        setCatLoading(false)
+      }
+    }
+    fetchCats()
+  }, [])
+
+  // 2. SUCCESS REDIRECTION logic
+  useEffect(() => {
+    if (state?.success) {
+      const timer = setTimeout(() => router.push('/vendor/products'), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [state, router])
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => setPreviewUrl(reader.result as string)
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const triggerUpload = () => fileInputRef.current?.click()
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSuccess(true)
-    }, 2000)
+    if (file) setPreview(URL.createObjectURL(file))
   }
 
   return (
-    <div className='p-6 md:p-10 max-w-6xl mx-auto'>
-      {/* Navigation */}
-      <div className='flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12'>
-        <div>
-          <Link
-            href='/vendor/products'
-            className='flex items-center gap-2 text-slate-400 hover:text-brand-orange transition-colors font-black text-[10px] uppercase tracking-widest mb-6 group w-fit'
-          >
-            <ArrowLeft
-              size={16}
-              className='group-hover:-translate-x-1 transition-transform'
-            />
-            Return to Floor Overview
-          </Link>
-          <h1 className='text-5xl font-black text-brand-slate italic uppercase tracking-tighter'>
-            Deploy<span className='text-brand-orange'>.</span>Asset
-          </h1>
-          <p className='text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 flex items-center gap-2'>
-            <Cpu size={14} className='text-brand-orange' /> Gym Registry Node
-            v2.04
-          </p>
+    <div className='p-6 md:p-10 max-w-3xl mx-auto relative min-h-screen'>
+      {/* ERROR MESSAGE DISPLAY */}
+      {state?.error && (
+        <div className='mb-6 p-4 bg-red-50 border-2 border-red-200 text-red-600 rounded-2xl font-bold text-xs uppercase tracking-widest'>
+          ⚠️ {state.error}
         </div>
+      )}
 
-        {/* Recent Deployment Slot (Shows last uploaded) */}
-        <div className='flex items-center gap-4 bg-slate-50 border-2 border-slate-100 p-3 rounded-2xl'>
-          <div className='w-10 h-10 rounded-xl bg-slate-200 overflow-hidden border-2 border-white shadow-sm'>
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                className='w-full h-full object-cover'
-                alt='Recent'
-              />
-            ) : (
-              <div className='w-full h-full flex items-center justify-center'>
-                <Dumbbell size={16} className='text-slate-400' />
-              </div>
-            )}
-          </div>
-          <p className='text-[9px] font-black uppercase text-slate-400 tracking-tighter leading-none'>
-            Active Deployment
-            <br />
-            <span className='text-brand-slate'>
-              {form.name || 'Pending Entry...'}
-            </span>
-          </p>
+      {/* SUCCESS MESSAGE DISPLAY */}
+      {state?.success && (
+        <div className='mb-6 p-4 bg-green-50 border-2 border-green-200 text-green-600 rounded-2xl font-bold text-xs uppercase tracking-widest'>
+          ✅ Product Registered Successfully! Redirecting...
         </div>
+      )}
+
+      <Link
+        href='/vendor/products'
+        className='flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-orange-500 mb-8 transition-all'
+      >
+        <ArrowLeft size={14} /> Back to My Products
+      </Link>
+
+      <div className='mb-10'>
+        <h1 className='text-4xl font-black text-slate-900 italic uppercase tracking-tighter'>
+          Register<span className='text-orange-500'>.</span>Product
+        </h1>
+        <p className='text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2'>
+          Vaulting New Equipment for Sale
+        </p>
       </div>
 
       <form
-        onSubmit={handleSubmit}
-        className='grid grid-cols-1 lg:grid-cols-12 gap-10'
+        action={formAction}
+        className='bg-white rounded-[40px] border-4 border-slate-100 shadow-2xl p-8 space-y-6'
       >
-        {/* Left Column: Media & Instructions */}
-        <div className='lg:col-span-4 space-y-6'>
-          <div className='sticky top-10 space-y-6'>
-            {/* Image Upload Zone - Functional */}
-            <div className='relative group' onClick={triggerUpload}>
-              <input
-                type='file'
-                ref={fileInputRef}
-                onChange={handleImageChange}
-                className='hidden'
-                accept='image/*'
+        {/* CRITICAL: HIDDEN ID FIELD */}
+        <input type='hidden' name='vendor_id' value={vendorId} />
+        <input type='hidden' name='status' value='active' />
+        <input type='hidden' name='is_featured' value='0' />
+
+        {/* Image Upload */}
+        <div className='relative group h-44 bg-slate-50 rounded-4xl border-4 border-dashed border-slate-100 flex items-center justify-center overflow-hidden transition-all hover:border-orange-500/30 cursor-pointer'>
+          <input
+            type='file'
+            name='images[]'
+            onChange={handleImageChange}
+            className='absolute inset-0 opacity-0 cursor-pointer z-10'
+            accept='image/*'
+          />
+          {preview ? (
+            <img
+              src={preview}
+              className='w-full h-full object-cover'
+              alt='Preview'
+            />
+          ) : (
+            <div className='flex flex-col items-center text-slate-400 group-hover:text-orange-500 transition-colors'>
+              <Upload size={32} />
+              <span className='text-[10px] font-black uppercase mt-2 tracking-widest'>
+                Upload product image
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+          {/* Name */}
+          <div className='space-y-2'>
+            <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+              Equipment Name
+            </label>
+            <div className='relative'>
+              <Dumbbell
+                className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+                size={18}
               />
-              <div className='absolute -inset-1 bg-linear-to-r from-brand-orange to-orange-600 rounded-5xl blur opacity-20 group-hover:opacity-40 transition duration-1000'></div>
-              <div className='relative bg-white p-4 rounded-5xl border-4 border-slate-100 shadow-xl text-center cursor-pointer overflow-hidden aspect-square flex items-center justify-center'>
-                {previewUrl ? (
-                  <div className='relative w-full h-full rounded-[2.5rem] overflow-hidden'>
-                    <img
-                      src={previewUrl}
-                      alt='Preview'
-                      className='w-full h-full object-cover'
-                    />
-                    <div className='absolute inset-0 bg-brand-slate/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-                      <Camera className='text-white' size={32} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className='w-full h-full bg-slate-50 rounded-[2.5rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-4 group-hover:bg-brand-orange/5 transition-all'>
-                    <div className='w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-300 shadow-md group-hover:scale-110 group-hover:text-brand-orange transition-all duration-500'>
-                      <Camera size={38} strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <p className='text-[11px] font-black uppercase tracking-widest text-brand-slate'>
-                        Upload Equipment Image
-                      </p>
-                      <p className='text-[9px] font-bold text-slate-400 uppercase mt-1'>
-                        PNG, JPG (Square preferred)
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Live Data Preview Card */}
-            <div className='bg-brand-slate p-8 rounded-5xl text-white shadow-2xl relative overflow-hidden'>
-              <div className='absolute top-0 right-0 p-4 opacity-10'>
-                <Eye size={80} />
-              </div>
-              <div className='flex items-center gap-3 mb-6'>
-                <Activity
-                  className='text-brand-orange animate-pulse'
-                  size={20}
-                />
-                <p className='text-[10px] font-black uppercase tracking-widest'>
-                  Telemetry Check
-                </p>
-              </div>
-              <div className='space-y-4'>
-                <div className='h-px bg-white/10 w-full' />
-                <div>
-                  <p className='text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]'>
-                    Equipment Designation
-                  </p>
-                  <p className='text-lg font-black italic uppercase truncate'>
-                    {form.name || 'Awaiting Input...'}
-                  </p>
-                </div>
-                <div className='flex justify-between'>
-                  <div>
-                    <p className='text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]'>
-                      Purchase Rate
-                    </p>
-                    <p className='font-black'>
-                      ₦{Number(form.price).toLocaleString() || '0'}
-                    </p>
-                  </div>
-                  <div className='text-right'>
-                    <p className='text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]'>
-                      Class
-                    </p>
-                    <p className='font-black uppercase text-[10px]'>
-                      {form.category}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <input
+                name='name'
+                placeholder='e.g. Scuba Regulator'
+                required
+                className='w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all'
+              />
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Technical Specs */}
-        <div className='lg:col-span-8 space-y-8'>
-          <div className='bg-white p-8 md:p-12 rounded-[4rem] border-4 border-slate-100 shadow-2xl relative'>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-10'>
-              {/* Asset Name */}
-              <div className='space-y-3 md:col-span-2'>
-                <label className='flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2'>
-                  <Tag size={12} className='text-brand-orange' /> Asset
-                  Designation
-                </label>
-                <input
-                  required
-                  type='text'
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder='e.g. Rogue Echo Bike V3'
-                  className='w-full px-8 py-5 bg-slate-50 border-3 border-transparent rounded-4xl focus:bg-white focus:border-brand-orange outline-none font-bold text-sm transition-all shadow-inner'
-                />
-              </div>
-
-              {/* Gym Category (Class) */}
-              <div className='space-y-3'>
-                <label className='flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2'>
-                  <Layers size={12} className='text-brand-orange' /> Equipment
-                  Class
-                </label>
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
-                  }
-                  className='w-full px-8 py-5 bg-slate-50 border-3 border-transparent rounded-4xl focus:bg-white focus:border-brand-orange outline-none font-bold text-sm transition-all appearance-none cursor-pointer shadow-inner'
-                >
-                  {gymClasses.map((cls) => (
-                    <option key={cls} value={cls}>
-                      {cls}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Rate */}
-              <div className='space-y-3'>
-                <label className='flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2'>
-                  <DollarSign size={12} className='text-brand-orange' />{' '}
-                  Acquisition Cost (₦)
-                </label>
-                <input
-                  required
-                  type='number'
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder='0.00'
-                  className='w-full px-8 py-5 bg-slate-50 border-3 border-transparent rounded-4xl focus:bg-white focus:border-brand-orange outline-none font-bold text-sm transition-all shadow-inner'
-                />
-              </div>
-
-              {/* Manifest Detail */}
-              <div className='space-y-3 md:col-span-2 pt-4'>
-                <label className='flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2'>
-                  <Info size={12} className='text-brand-orange' /> Maintenance
-                  Manifest
-                </label>
-                <textarea
-                  rows={4}
-                  value={form.specs}
-                  onChange={(e) => setForm({ ...form, specs: e.target.value })}
-                  placeholder='Note current condition, serial numbers, and warranty expiration...'
-                  className='w-full px-8 py-6 bg-slate-50 border-3 border-transparent rounded-[2.5rem] focus:bg-white focus:border-brand-orange outline-none font-bold text-sm resize-none transition-all shadow-inner'
-                />
-              </div>
+          {/* SKU */}
+          <div className='space-y-2'>
+            <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+              Product SKU
+            </label>
+            <div className='relative'>
+              <Hash
+                className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+                size={18}
+              />
+              <input
+                name='sku'
+                placeholder='EG-100-PRO'
+                required
+                className='w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all'
+              />
             </div>
+          </div>
 
-            {/* Action Area */}
-            <div className='pt-8'>
-              <button
-                disabled={loading}
-                className={cn(
-                  'w-full py-8 rounded-[2.5rem] font-black text-[12px] uppercase tracking-[0.3em] text-white shadow-2xl flex items-center justify-center gap-4 transition-all active:scale-[0.98] relative overflow-hidden group',
-                  success
-                    ? 'bg-emerald-500 shadow-emerald-200'
-                    : 'bg-brand-slate hover:bg-slate-800'
-                )}
+          {/* Category */}
+          <div className='space-y-2'>
+            <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+              Category
+            </label>
+            <div className='relative'>
+              <Layers
+                className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+                size={18}
+              />
+              <select
+                name='category_id'
+                required
+                disabled={catLoading}
+                className='w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all appearance-none cursor-pointer'
               >
-                {loading ? (
-                  <Loader2 className='w-6 h-6 animate-spin' />
-                ) : success ? (
-                  <>
-                    <CheckCircle2 size={20} className='animate-bounce' />
-                    <span>Asset Registered</span>
-                  </>
-                ) : (
-                  <>
-                    <div className='absolute inset-0 bg-brand-orange translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-0' />
-                    <Plus size={20} strokeWidth={4} className='z-10' />
-                    <span className='z-10'>Execute Deployment Sequence</span>
-                  </>
-                )}
-              </button>
+                <option value=''>Select Category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Price */}
+          <div className='space-y-2'>
+            <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+              Price (₦)
+            </label>
+            <div className='relative'>
+              <DollarSign
+                className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+                size={18}
+              />
+              <input
+                name='price'
+                type='number'
+                placeholder='0.00'
+                required
+                className='w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all'
+              />
             </div>
           </div>
         </div>
+
+        {/* Short Description */}
+        <div className='space-y-2'>
+          <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+            Short Summary
+          </label>
+          <div className='relative'>
+            <AlignLeft
+              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+              size={18}
+            />
+            <input
+              name='short_description'
+              placeholder='Brief one-liner description'
+              required
+              className='w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all'
+            />
+          </div>
+        </div>
+
+        {/* Full Description */}
+        <div className='space-y-2'>
+          <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
+            Full Description
+          </label>
+          <textarea
+            name='description'
+            rows={3}
+            required
+            className='w-full p-6 bg-slate-50 rounded-3xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm transition-all resize-none'
+            placeholder='Provide all technical specifications...'
+          ></textarea>
+        </div>
+
+        {/* Stats Grid */}
+        <div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+          <div className='space-y-1'>
+            <label className='text-[9px] font-black text-slate-400 uppercase'>
+              Stock Qty
+            </label>
+            <input
+              name='quantity'
+              type='number'
+              placeholder='0'
+              className='w-full p-3 bg-slate-50 rounded-xl border-2 border-transparent focus:border-orange-500 outline-none text-xs font-bold'
+            />
+          </div>
+          <div className='space-y-1'>
+            <label className='text-[9px] font-black text-slate-400 uppercase'>
+              Weight (kg)
+            </label>
+            <input
+              name='weight'
+              placeholder='0.0'
+              className='w-full p-3 bg-slate-50 rounded-xl border-2 border-transparent focus:border-orange-500 outline-none text-xs font-bold'
+            />
+          </div>
+          <div className='space-y-1'>
+            <label className='text-[9px] font-black text-slate-400 uppercase'>
+              Dimensions
+            </label>
+            <input
+              name='dimensions'
+              placeholder='LxWxH'
+              className='w-full p-3 bg-slate-50 rounded-xl border-2 border-transparent focus:border-orange-500 outline-none text-xs font-bold'
+            />
+          </div>
+        </div>
+
+        <button
+          disabled={isPending || !vendorId}
+          type='submit'
+          className='bg-orange-500 text-white w-full py-6 rounded-3xl font-black uppercase tracking-[0.2em] text-[11px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+        >
+          {isPending ? (
+            <Loader2 className='animate-spin' />
+          ) : (
+            'Register Product'
+          )}
+        </button>
+
+        {!vendorId && (
+          <p className='text-center text-red-500 text-[9px] font-black uppercase'>
+            Error: Session Missing. Please Login Again.
+          </p>
+        )}
       </form>
     </div>
   )

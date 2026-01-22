@@ -23,7 +23,7 @@ import { cn } from '@/app/lib/utils'
 
 const VENDOR_LINKS = [
   { name: 'Dashboard', href: '/vendor', icon: LayoutDashboard },
-  { name: 'Add Gear', href: '/vendor/products/add', icon: PlusSquare },
+  { name: 'Add Products', href: '/vendor/products/add', icon: PlusSquare },
   { name: 'My Products', href: '/vendor/products', icon: Package },
   { name: 'Orders', href: '/vendor/orders', icon: ShoppingCart },
   { name: 'Earnings', href: '/vendor/earnings', icon: Wallet },
@@ -205,7 +205,7 @@ export default function VendorSidebar({
               </p>
               <p className='text-[9px] text-brand-orange uppercase tracking-widest font-black mt-0.5 flex items-center gap-1'>
                 <span className='w-1 h-1 bg-brand-orange rounded-full' />{' '}
-                Verified Node
+                Verified
               </p>
             </div>
           </div>
