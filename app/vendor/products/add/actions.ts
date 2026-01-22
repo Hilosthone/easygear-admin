@@ -15,9 +15,6 @@ export async function createProduct(prevState: any, formData: FormData) {
   try {
     const baseUrl = 'https://api.easygear.ng/api/v1'
 
-    /** * FIX: Added trailing slash. Laravel often redirects /products
-     * to /products/, converting POST to GET in the process.
-     */
     const endpoint = `${baseUrl}/products/`
 
     const apiPayload = new FormData()
@@ -56,7 +53,6 @@ export async function createProduct(prevState: any, formData: FormData) {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
-        // Important: Let the browser set the Content-Type for FormData
       },
       body: apiPayload,
     })

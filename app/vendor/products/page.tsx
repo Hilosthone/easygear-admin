@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   Plus,
   Search,
-  Filter,
   Loader2,
   RefreshCcw,
   Dumbbell,
