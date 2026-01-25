@@ -163,7 +163,7 @@ export default function MyGymInventory() {
             setSelectedCategory(e.target.value)
             setCurrentPage(1)
           }}
-          className='px-6 py-4 bg-slate-50 border-2 border-transparent rounded-xl font-black text-[10px] uppercase outline-none focus:border-orange-500 cursor-pointer min-w-[180px]'
+          className='px-6 py-4 bg-slate-50 border-2 border-transparent rounded-xl font-black text-[10px] uppercase outline-none focus:border-orange-500 cursor-pointer min-w-45'
         >
           <option value=''>All Categories</option>
           {categories.map((cat) => (
