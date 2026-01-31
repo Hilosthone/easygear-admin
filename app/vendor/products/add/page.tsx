@@ -16,6 +16,7 @@ import {
   Type,
   Weight,
   Ruler,
+  X,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -29,10 +30,10 @@ export default function AddProductPage() {
 
   const [categories, setCategories] = useState<Category[]>([])
   const [catLoading, setCatLoading] = useState(true)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [vendorId, setVendorId] = useState<string>('')
 
-  // Submission states
   const [isPending, setIsPending] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
@@ -80,62 +81,102 @@ export default function AddProductPage() {
   }, [submitSuccess, router])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPreview(URL.createObjectURL(file))
+    if (!e.target.files) return
+
+    const newFiles = Array.from(e.target.files)
+    const totalAfterAdd = imageFiles.length + newFiles.length
+
+    if (totalAfterAdd > 5) {
+      alert(`You can upload maximum 5 images. Currently selected: ${imageFiles.length}`)
+      return
     }
+
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file))
+
+    setImageFiles(prev => [...prev, ...newFiles])
+    setPreviews(prev => [...prev, ...newPreviews])
   }
+
+  const removeImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index))
+    setPreviews(prev => {
+      URL.revokeObjectURL(prev[index])
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  // Cleanup object URLs when component unmounts or previews change
+  useEffect(() => {
+    return () => {
+      previews.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [previews])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (imageFiles.length === 0) {
+      setSubmitError('Please upload at least one product image')
+      return
+    }
+
     setIsPending(true)
     setSubmitError(null)
     setSubmitSuccess(false)
 
     try {
-      const formData = new FormData(e.currentTarget)
+      const formData = new FormData()
+
+      // Collect all non-file fields
+      const formElements = e.currentTarget.elements
+      for (const el of formElements) {
+        const input = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        if (input.name && input.type !== 'file') {
+          if (input.type === 'checkbox') {
+            if ((input as HTMLInputElement).checked) {
+              formData.append(input.name, '1')
+            }
+          } else if (input.value) {
+            formData.append(input.name, input.value)
+          }
+        }
+      }
+
+      // Append images as array
+      imageFiles.forEach(file => {
+        formData.append('images[]', file)
+        // If your backend expects just "images" without [], try:
+        // formData.append('images', file)
+      })
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.easygear.ng/api/v1'
       const endpoint = `${baseUrl}/vendor/products`
 
-      // Read token from cookies
-      const token = Cookies.get('auth_token') // ← change this if your cookie has different name
-      // Examples of other common names:
-      // const token = Cookies.get('access_token')
-      // const token = Cookies.get('auth_token')
-      // const token = Cookies.get('jwt')
+      const token = Cookies.get('auth_token')
 
       const headers: Record<string, string> = {}
-
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
-      } else {
-        console.warn('No authentication token found in cookies')
-        // You can decide whether to continue or block:
-        // throw new Error('Please log in to add products')
       }
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: formData,
-        // credentials: 'include', // ← uncomment if you want to send cookies automatically too
       })
 
       if (!response.ok) {
-        let errorMessage = `Error ${response.status}`
+        let errorMessage = `Server error (${response.status})`
         try {
           const errorData = await response.json()
           errorMessage = errorData.message || errorData.error || errorMessage
-        } catch {
-          // no JSON body
-        }
+          console.log('Backend error response:', errorData)
+        } catch {}
         throw new Error(errorMessage)
       }
 
       const result = await response.json()
 
-      // Adjust this success check based on your actual API response
       if (result.success || result.data || result.message?.toLowerCase().includes('success')) {
         setSubmitSuccess(true)
       } else {
@@ -194,31 +235,58 @@ export default function AddProductPage() {
         <input type="hidden" name="vendor_id" value={vendorId} />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Image upload */}
+          {/* Images Section */}
           <div className="lg:col-span-5">
-            <div className="relative group aspect-square bg-slate-50 rounded-4xl border-4 border-dashed border-slate-100 flex items-center justify-center overflow-hidden transition-all hover:border-orange-500/30 cursor-pointer shadow-inner">
-              <input
-                type="file"
-                name="image"
-                onChange={handleImageChange}
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                accept="image/*"
-                required
-              />
-              {preview ? (
-                <img src={preview} className="w-full h-full object-cover" alt="Preview" />
-              ) : (
-                <div className="flex flex-col items-center text-slate-300 group-hover:text-orange-500 transition-colors">
-                  <Upload size={48} strokeWidth={3} />
-                  <span className="text-[9px] font-black uppercase mt-4 tracking-[0.2em]">
-                    Add Product Image
-                  </span>
+            <div className="space-y-4">
+              {/* Previews */}
+              {previews.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {previews.map((src, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group rounded-2xl overflow-hidden shadow-md border border-slate-200"
+                    >
+                      <img
+                        src={src}
+                        alt={`Product preview ${idx + 1}`}
+                        className="w-full aspect-square object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1.5 right-1.5 bg-red-600 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {/* Upload area - only show if under limit */}
+              {previews.length < 5 && (
+                <label className="relative group aspect-square bg-slate-50 rounded-4xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 transition-colors shadow-inner">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    disabled={isPending}
+                  />
+                  <Upload size={48} strokeWidth={2.5} className="text-slate-400 group-hover:text-orange-500 transition-colors" />
+                  <span className="mt-4 text-[11px] font-bold uppercase tracking-wide text-slate-500 group-hover:text-orange-600">
+                    {previews.length === 0 ? 'Upload Product Images' : 'Add More Images'}
+                  </span>
+                  <span className="mt-1.5 text-xs text-slate-400">
+                    {previews.length} / 5
+                  </span>
+                </label>
               )}
             </div>
           </div>
 
-          {/* Main info */}
+          {/* Main Fields */}
           <div className="lg:col-span-7 space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-slate-400 ml-2">
@@ -260,7 +328,7 @@ export default function AddProductPage() {
                     className="w-full pl-14 pr-10 py-5 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm appearance-none cursor-pointer"
                   >
                     <option value="">Select category...</option>
-                    {categories.map((cat) => (
+                    {categories.map(cat => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name.toUpperCase()}
                       </option>
@@ -325,7 +393,7 @@ export default function AddProductPage() {
               <Ruler className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
               <input
                 name="dimensions"
-                placeholder="10x5x3 cm"
+                placeholder="10×5×3 cm"
                 className="w-full pl-14 pr-6 py-5 bg-slate-50 rounded-2xl border-3 border-transparent focus:border-orange-500 focus:bg-white outline-none font-bold text-sm"
               />
             </div>
@@ -346,7 +414,7 @@ export default function AddProductPage() {
 
         <div className="flex items-center gap-3">
           <label className="text-[10px] font-black uppercase text-slate-400">Featured Product?</label>
-          <input type="checkbox" name="is_featured" value="1" className="w-5 h-5" />
+          <input type="checkbox" name="is_featured" value="1" className="w-5 h-5 accent-orange-500" />
         </div>
 
         <div className="space-y-2">
@@ -375,9 +443,9 @@ export default function AddProductPage() {
         </div>
 
         <button
-          disabled={isPending || !vendorId}
+          disabled={isPending || !vendorId || imageFiles.length === 0}
           type="submit"
-          className="bg-orange-500 text-white w-full py-7 rounded-4xl font-black uppercase tracking-[0.3em] text-xs shadow-2xl shadow-orange-500/40 hover:bg-slate-900 hover:shadow-none transition-all flex items-center justify-center gap-4 disabled:opacity-50 group"
+          className="bg-orange-500 text-white w-full py-7 rounded-4xl font-black uppercase tracking-[0.3em] text-xs shadow-2xl shadow-orange-500/40 hover:bg-slate-900 hover:shadow-none transition-all flex items-center justify-center gap-4 disabled:opacity-50 group mt-8"
         >
           {isPending ? (
             <Loader2 className="animate-spin" size={24} />

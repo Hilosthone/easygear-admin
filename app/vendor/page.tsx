@@ -6,7 +6,7 @@ export default function VendorDashboardOverview() {
     <div className='space-y-10'>
       <div>
         <h1 className='text-4xl font-black text-brand-slate tracking-tight'>
-          Vendor Terminal
+          Vendor Dashboard
         </h1>
         <p className='text-slate-500 font-bold mt-1'>
           Managing: Storefront Nike-Air

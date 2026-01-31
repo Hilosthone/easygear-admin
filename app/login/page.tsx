@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const [role, setRole] = useState<'admin' | 'vendor'>('admin')
@@ -168,12 +169,22 @@ export default function LoginPage() {
 
       <div className='w-full max-w-xl'>
         <div className='text-center mb-10'>
-          <h1 className='text-5xl font-black italic tracking-tighter text-slate-900 uppercase'>
+          {/* <h1 className='text-5xl font-black italic tracking-tighter text-slate-900 uppercase'>
             easyGear<span className='text-orange-500'>.</span>
           </h1>
           <p className='text-slate-400 font-bold mt-2 uppercase tracking-[0.2em] text-xs'>
             Terminal Access Control
-          </p>
+          </p> */}
+          <Image
+            src="/logo.png"
+            alt="easyGear Logo"
+            width={250}
+            height={100}
+            className="mx-auto" 
+            />
+           <h1 className='text-3xl font-black italic tracking-tighter text-slate-900 '>
+            Central Backend System
+          </h1> 
         </div>
 
         <div className='bg-white rounded-5xl border-4 border-white shadow-2xl overflow-hidden'>
@@ -285,7 +296,7 @@ export default function LoginPage() {
                   <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
                 ) : (
                   <>
-                    <span>Unlock Portal</span>
+                    <span>Secure Login</span>
                     <ChevronRight size={18} strokeWidth={4} />
                   </>
                 )}
