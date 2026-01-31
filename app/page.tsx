@@ -44,14 +44,9 @@ export default function LoginPage() {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
-    // Helper to set both Cookie and LocalStorage
     const saveSession = (token: string, userData: any) => {
-      // 1. Save to LocalStorage for Client-Side persistence
       localStorage.setItem('easygear_token', token)
       localStorage.setItem('user', JSON.stringify(userData))
-
-      // 2. Save to Cookies so Server Actions (actions.ts) can read it
-      // 'max-age=86400' is 24 hours
       document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax; ${
         window.location.protocol === 'https:' ? 'Secure' : ''
       }`
@@ -122,7 +117,6 @@ export default function LoginPage() {
             router.replace('/admin')
           } else {
             router.replace('/vendor')
-            console.log('FULL API RESPONSE:', result) 
           }
         }, 1500)
       } else {
@@ -142,23 +136,6 @@ export default function LoginPage() {
   }
 
   return (
-<<<<<<< HEAD
-    <main className='flex min-h-screen items-center justify-center bg-zinc-50 p-6'>
-      <div className='w-full max-w-112.5 space-y-8'>
-        {/* Branding Area */}
-        <div className='flex flex-col items-center text-center'>
-          <div className='relative h-16 w-40 mb-2'>
-            <Image
-              src='/easyGear-Orange.jpeg'
-              alt='easyGear'
-              fill
-              className='object-contain'
-              priority
-            />
-          </div>
-          <p className='text-sm font-bold text-zinc-500 uppercase tracking-widest'>
-            Admin Terminal Access
-=======
     <div className='min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans relative overflow-hidden'>
       {/* TOAST SYSTEM */}
       {toast && (
@@ -177,7 +154,6 @@ export default function LoginPage() {
           )}
           <p className='text-xs font-black uppercase tracking-widest'>
             {toast.message}
->>>>>>> 633e3eb9809891026269d7d218ece07bdff36409
           </p>
           <button onClick={() => setToast(null)} className='ml-2'>
             <X size={16} />
@@ -187,25 +163,20 @@ export default function LoginPage() {
 
       <div className='w-full max-w-xl'>
         <div className='text-center mb-10'>
-          {/* <h1 className='text-5xl font-black italic tracking-tighter text-slate-900 uppercase'>
-            easyGear<span className='text-orange-500'>.</span>
-          </h1>
-          <p className='text-slate-400 font-bold mt-2 uppercase tracking-[0.2em] text-xs'>
-            Terminal Access Control
-          </p> */}
           <Image
-            src="/logo.png"
-            alt="easyGear Logo"
-            width={250}
-            height={100}
-            className="mx-auto" 
-            />
-           <h1 className='text-3xl font-black italic tracking-tighter text-slate-900 '>
-            Central Backend System
-          </h1> 
+            src='/easyGear-Orange.jpeg'
+            alt='easyGear Logo'
+            width={200}
+            height={80}
+            className='mx-auto object-contain'
+            priority
+          />
+          <h1 className='text-3xl font-black italic tracking-tighter text-slate-900 mt-4'>
+            Central Control System
+          </h1>
         </div>
 
-        <div className='bg-white rounded-5xl border-4 border-white shadow-2xl overflow-hidden'>
+        <div className='bg-white rounded-[40px] border-4 border-white shadow-2xl overflow-hidden'>
           <div className='flex p-2 bg-slate-100/50 m-6 rounded-3xl border border-slate-200/50'>
             <button
               type='button'
