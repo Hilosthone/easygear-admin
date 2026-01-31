@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
   // Standard Icons
   icons: {
-    icon: '/easyGearlogo_Black.png',
-    apple: '/easyGearlogo_Black.png',
+    icon: '/easyGear-Orange.jpeg',
+    apple: '/easyGear-Orange.jpeg',
   },
 
   // WhatsApp & Facebook (Open Graph)
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     siteName: 'easyGear',
     images: [
       {
-        url: '/easyGearlogo_Black.png', // Ensure this file is in your /public folder
+        url: '/easyGear-Orange.jpeg', 
         width: 800,
         height: 600,
         alt: 'easyGear Admin Logo',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'easyGear Terminal',
     description: 'Admin & Vendor Management System',
-    images: ['/easyGearlogo_Black.png'],
+    images: ['/easyGear-Orange.jpeg'],
   },
 }
 

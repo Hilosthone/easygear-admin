@@ -30,7 +30,7 @@ export default function LoginPage() {
         <div className='flex flex-col items-center text-center'>
           <div className='relative h-16 w-40 mb-2'>
             <Image
-              src='/easyGearlogo_Black.png'
+              src='/easyGear-Orange.jpeg'
               alt='easyGear'
               fill
               className='object-contain'

@@ -3,52 +3,74 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 
+const BASE_URL = 'https://api.easygear.ng/api/v1'
+
+console.log('SERVER: actions.ts initialized')
+
 /**
  * 1. CREATE PRODUCT ACTION
+ * Targeting /vendor/products because /products is GET only.
  */
 export async function createProduct(prevState: any, formData: FormData) {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('auth_token')?.value
-
-  if (!token) return { error: 'Session expired. Please login again.' }
+  console.log('--- 🚀 SERVER ACTION STARTED ---')
 
   try {
-    const baseUrl = 'https://api.easygear.ng/api/v1'
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth_token')?.value
 
-    const endpoint = `${baseUrl}/products/`
+    if (!token) {
+      console.error('❌ DEBUG: No auth token found.')
+      return { success: false, error: 'Session expired. Please login again.' }
+    }
 
     const apiPayload = new FormData()
 
-    // Mapping fields
-    apiPayload.append('vendor_id', formData.get('vendor_id') as string)
-    apiPayload.append('name', formData.get('name') as string)
-    apiPayload.append('sku', formData.get('sku') as string)
-    apiPayload.append('category_id', formData.get('category_id') as string)
-    apiPayload.append('price', formData.get('price') as string)
-    apiPayload.append('description', formData.get('description') as string)
+    // 1. Map basic fields
+    const fields = [
+      'vendor_id',
+      'name',
+      'sku',
+      'category_id',
+      'price',
+      'description',
+      'quantity',
+    ]
 
-    // Hidden logic fields required by the API structure
+    fields.forEach((field) => {
+      const value = formData.get(field)
+      if (value) apiPayload.append(field, value as string)
+    })
+
+    // 2. Map logic defaults
     apiPayload.append(
       'short_description',
       (formData.get('short_description') as string) ||
         (formData.get('name') as string),
     )
-    apiPayload.append('quantity', (formData.get('quantity') as string) || '1')
-    apiPayload.append('weight', '0.5')
-    apiPayload.append('dimensions', 'N/A')
-    apiPayload.append('status', 'active')
+    apiPayload.append('weight', (formData.get('weight') as string) || '0.5')
+    apiPayload.append(
+      'dimensions',
+      (formData.get('dimensions') as string) || 'N/A',
+    )
+    apiPayload.append('status', (formData.get('status') as string) || 'active')
     apiPayload.append('is_active', '1')
-    apiPayload.append('is_featured', '0')
+    apiPayload.append(
+      'is_featured',
+      formData.get('is_featured') === '1' ? '1' : '0',
+    )
 
-    // Handling image upload
-    const images = formData.getAll('images[]')
-    images.forEach((file) => {
+    // 3. Handle Images
+    const imageFiles = formData.getAll('images[]')
+    imageFiles.forEach((file, index) => {
       if (file instanceof File && file.size > 0) {
+        console.log(`Adding image ${index}: ${file.name}`)
         apiPayload.append('images[]', file)
       }
     })
 
-    const response = await fetch(endpoint, {
+    // 4. API Request - Switched to /vendor/products for creation
+    console.log('📡 Sending POST to:', `${BASE_URL}/vendor/products`)
+    const response = await fetch(`${BASE_URL}/vendor/products`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -59,19 +81,24 @@ export async function createProduct(prevState: any, formData: FormData) {
 
     const result = await response.json()
 
-    if (response.ok) {
+    console.log('--- 📡 API RESPONSE ---')
+    console.log('Status:', response.status)
+    console.log('Body:', JSON.stringify(result, null, 2))
+
+    if (response.ok || response.status === 201) {
+      console.log('✅ PRODUCT CREATED SUCCESSFULLY')
       revalidatePath('/vendor/products')
       return { success: true, error: null }
     }
 
-    // Capture Laravel validation errors
     const errorMessage = result.errors
       ? Object.values(result.errors).flat().join(', ')
       : result.message || 'Server rejected the request'
 
+    console.error('❌ API ERROR:', errorMessage)
     return { success: false, error: errorMessage }
   } catch (err) {
-    console.error('CREATE_PRODUCT_ERROR:', err)
+    console.error('💥 CRITICAL ERROR:', err)
     return { success: false, error: 'Connection to server failed.' }
   }
 }
@@ -80,25 +107,20 @@ export async function createProduct(prevState: any, formData: FormData) {
  * 2. DELETE PRODUCT ACTION
  */
 export async function deleteProduct(productId: number) {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('auth_token')?.value
-
-  if (!token) return { error: 'Auth token missing.' }
-
   try {
-    const baseUrl = 'https://api.easygear.ng/api/v1'
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth_token')?.value
+    if (!token) return { success: false, error: 'Auth token missing.' }
 
-    // Using FormData for method spoofing which is safer for some PHP backends
-    const apiPayload = new FormData()
-    apiPayload.append('_method', 'DELETE')
+    console.log(`--- 🗑️ DELETING PRODUCT: ${productId} ---`)
 
-    const res = await fetch(`${baseUrl}/products/${productId}`, {
-      method: 'POST',
+    // Use /vendor/products/${id} for deletion if it's a vendor-scoped action
+    const res = await fetch(`${BASE_URL}/vendor/products/${productId}`, {
+      method: 'DELETE', // Try native DELETE first
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
-      body: apiPayload,
     })
 
     if (res.ok) {
@@ -106,13 +128,11 @@ export async function deleteProduct(productId: number) {
       return { success: true }
     }
 
-    const errorData = await res.json().catch(() => ({}))
-    return {
-      success: false,
-      error: errorData.message || 'The server refused to delete this product.',
-    }
+    // Fallback for APIs that require POST spoofing for DELETE
+    const result = await res.json().catch(() => ({}))
+    return { success: false, error: result.message || 'Delete failed.' }
   } catch (err) {
-    console.error('DELETE_PRODUCT_ERROR:', err)
+    console.error('Delete Error:', err)
     return { success: false, error: 'Network communication failure.' }
   }
 }
