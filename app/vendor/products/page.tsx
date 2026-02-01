@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Plus,
   Search,
@@ -10,6 +10,10 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Package,
+  AlertCircle,
+  CheckCircle2,
+  Archive,
 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
@@ -35,16 +39,22 @@ export default function MyGymInventory() {
     process.env.NEXT_PUBLIC_API_URL || 'https://api.easygear.ng/api/v1'
   const assetBaseUrl = 'https://api.easygear.ng'
 
-  // 1. Fetch Categories
+  // Summary Logic
+  const inventoryStats = useMemo(() => {
+    return {
+      available: products.filter((p) => p.quantity > 5).length,
+      lowStock: products.filter((p) => p.quantity > 0 && p.quantity <= 5)
+        .length,
+      outOfStock: products.filter((p) => p.quantity === 0).length,
+    }
+  }, [products])
+
   useEffect(() => {
     async function getCats() {
       try {
         const res = await fetch(`${baseUrl}/categories`)
         const json = await res.json()
-        if (json.success) {
-          const catData = json.data?.data || json.data || []
-          setCategories(catData)
-        }
+        if (json.success) setCategories(json.data?.data || json.data || [])
       } catch (e) {
         console.error('Failed to load categories:', e)
       }
@@ -52,7 +62,6 @@ export default function MyGymInventory() {
     getCats()
   }, [baseUrl])
 
-  // 2. Fetch Inventory
   const fetchInventory = useCallback(
     async (page: number = 1) => {
       setLoading(true)
@@ -61,14 +70,7 @@ export default function MyGymInventory() {
         const userString = localStorage.getItem('user')
         const user = userString ? JSON.parse(userString) : null
 
-        // Use the vendor_id from session, but we'll prioritize what the API says
-        const vendorId = user?.vendor_id || user?.id
-
-        if (!token) {
-          console.error('DEBUG: No Token Found')
-          setLoading(false)
-          return
-        }
+        if (!token) return setLoading(false)
 
         const params = new URLSearchParams({
           page: page.toString(),
@@ -80,12 +82,9 @@ export default function MyGymInventory() {
         if (debouncedSearch) params.append('search', debouncedSearch)
         if (selectedCategory) params.append('category_id', selectedCategory)
 
-        console.log(`📡 Fetching Inventory for currently logged-in vendor...`)
-
         const res = await fetch(
           `${baseUrl}/vendor/products?${params.toString()}`,
           {
-            method: 'GET',
             headers: {
               Authorization: `Bearer ${token}`,
               Accept: 'application/json',
@@ -94,7 +93,6 @@ export default function MyGymInventory() {
         )
 
         const json = await res.json()
-
         if (json.success && json.data) {
           const fetchedProducts = Array.isArray(json.data)
             ? json.data
@@ -102,24 +100,6 @@ export default function MyGymInventory() {
           setProducts(fetchedProducts)
           setLastPage(json.data.last_page || 1)
           setCurrentPage(json.data.current_page || page)
-
-          // 🧠 SMART SYNC: If API says we are Vendor 6 but local says 13, update local.
-          if (
-            json.data?.data?.[0]?.vendor_id &&
-            json.data.data[0].vendor_id !== vendorId
-          ) {
-            console.log(
-              '🔄 Syncing local Vendor ID to:',
-              json.data.data[0].vendor_id,
-            )
-            localStorage.setItem(
-              'user',
-              JSON.stringify({
-                ...user,
-                vendor_id: json.data.data[0].vendor_id,
-              }),
-            )
-          }
         }
       } catch (err) {
         console.error('Failed to fetch products:', err)
@@ -146,11 +126,8 @@ export default function MyGymInventory() {
     setDeleteLoading(id)
     try {
       const result = await deleteProduct(id)
-      if (result.success) {
-        setRefreshKey((prev) => prev + 1)
-      } else {
-        alert(result.error || 'Failed to delete product')
-      }
+      if (result.success) setRefreshKey((prev) => prev + 1)
+      else alert(result.error || 'Failed to delete product')
     } catch (err) {
       alert('A network error occurred.')
     } finally {
@@ -165,48 +142,87 @@ export default function MyGymInventory() {
   }
 
   return (
-    <div className='p-6 md:p-10 max-w-7xl mx-auto relative min-h-screen bg-slate-50/30'>
-      <div className='flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12'>
+    <div className='p-4 md:p-8 max-w-6xl mx-auto relative min-h-screen bg-white'>
+      {/* Header */}
+      <div className='flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8'>
         <div>
-          <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter'>
-            My<span className='text-orange-500'>.</span>Products
+          <div className='flex items-center gap-2 mb-1'>
+            <Package size={12} className='text-orange-500' />
+            <p className='text-[8px] font-black uppercase tracking-[0.3em] text-slate-400'>
+              Live Stock Status
+            </p>
+          </div>
+          <h1 className='text-3xl font-black text-slate-900 uppercase tracking-tighter'>
+            Gear<span className='text-orange-500'>.</span>Vault
           </h1>
-          <button
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className='text-[9px] font-black uppercase text-slate-400 flex items-center gap-2 hover:text-orange-500 mt-2 transition-colors group'
-          >
-            <RefreshCcw
-              size={12}
-              className={cn(
-                loading && 'animate-spin',
-                'group-hover:rotate-180 transition-transform duration-500',
-              )}
-            />
-            Refresh Inventory
-          </button>
         </div>
 
-        <Link
-          href='/vendor/products/add'
-          className='bg-orange-500 text-white px-10 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:bg-slate-900 transition-all flex items-center gap-3'
-        >
-          <Plus size={20} strokeWidth={3} /> Add New Product
-        </Link>
+        <div className='flex items-center gap-3'>
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className='p-3 bg-slate-50 rounded-xl text-slate-400 hover:text-orange-500 transition-colors'
+          >
+            <RefreshCcw size={16} className={cn(loading && 'animate-spin')} />
+          </button>
+          <Link
+            href='/vendor/products/add'
+            className='bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 transition-all flex items-center gap-2'
+          >
+            <Plus size={16} strokeWidth={3} /> Add Gear
+          </Link>
+        </div>
       </div>
 
-      {/* FILTERS */}
-      <div className='bg-white p-4 rounded-3xl border-2 border-slate-100 mb-8 flex flex-col md:flex-row gap-4 shadow-sm'>
-        <div className='relative flex-1'>
+      {/* Summary Sections */}
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8'>
+        <div className='bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl'>
+          <div className='flex items-center gap-2 mb-1 text-emerald-600'>
+            <CheckCircle2 size={12} />
+            <span className='text-[8px] font-black uppercase tracking-widest'>
+              Available
+            </span>
+          </div>
+          <p className='text-2xl font-black text-emerald-700'>
+            {inventoryStats.available.toString().padStart(2, '0')}
+          </p>
+        </div>
+        <div className='bg-amber-50/50 border border-amber-100 p-4 rounded-2xl'>
+          <div className='flex items-center gap-2 mb-1 text-amber-600'>
+            <AlertCircle size={12} />
+            <span className='text-[8px] font-black uppercase tracking-widest'>
+              Few Remaining
+            </span>
+          </div>
+          <p className='text-2xl font-black text-amber-700'>
+            {inventoryStats.lowStock.toString().padStart(2, '0')}
+          </p>
+        </div>
+        <div className='bg-slate-50 border border-slate-100 p-4 rounded-2xl opacity-60'>
+          <div className='flex items-center gap-2 mb-1 text-slate-500'>
+            <Archive size={12} />
+            <span className='text-[8px] font-black uppercase tracking-widest'>
+              Out of Stock
+            </span>
+          </div>
+          <p className='text-2xl font-black text-slate-700'>
+            {inventoryStats.outOfStock.toString().padStart(2, '0')}
+          </p>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className='grid grid-cols-1 md:grid-cols-4 gap-3 mb-6'>
+        <div className='md:col-span-3 relative'>
           <Search
-            className='absolute left-5 top-1/2 -translate-y-1/2 text-slate-300'
-            size={18}
+            className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-300'
+            size={16}
           />
           <input
             type='text'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='Search by name, SKU...'
-            className='w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-orange-500 outline-none font-bold text-sm transition-all'
+            placeholder='Search assets...'
+            className='w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500/10 outline-none font-bold text-xs transition-all'
           />
         </div>
 
@@ -216,102 +232,112 @@ export default function MyGymInventory() {
             setSelectedCategory(e.target.value)
             setCurrentPage(1)
           }}
-          className='px-6 py-4 bg-slate-50 border-2 border-transparent rounded-xl font-black text-[10px] uppercase outline-none focus:border-orange-500 cursor-pointer min-w-45'
+          className='px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-black text-[9px] uppercase outline-none cursor-pointer'
         >
-          <option value=''>All Categories</option>
+          <option value=''>All Gear</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
-              {cat.name.toUpperCase()}
+              {cat.name}
             </option>
           ))}
         </select>
       </div>
 
-      {/* TABLE */}
-      <div className='bg-white rounded-[40px] border-4 border-slate-100 shadow-2xl overflow-hidden relative'>
+      {/* Inventory Table */}
+      <div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden relative'>
         {loading && (
-          <div className='absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-sm'>
-            <Loader2 className='animate-spin text-orange-500' size={48} />
+          <div className='absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px]'>
+            <Loader2 className='animate-spin text-orange-500' size={32} />
           </div>
         )}
 
         <div className='overflow-x-auto'>
-          <table className='w-full text-left border-collapse'>
-            <thead className='bg-slate-50/70 border-b-2 border-slate-100'>
+          <table className='w-full text-left'>
+            <thead className='bg-slate-50/50 border-b border-slate-100'>
               <tr>
-                <th className='p-6 text-[10px] font-black uppercase text-slate-500'>
-                  Product
+                <th className='p-4 text-[9px] font-black uppercase text-slate-400 tracking-widest'>
+                  Asset Detail
                 </th>
-                <th className='p-6 text-[10px] font-black uppercase text-slate-500'>
-                  Stock
+                <th className='p-4 text-[9px] font-black uppercase text-slate-400 tracking-widest'>
+                  Status
                 </th>
-                <th className='p-6 text-[10px] font-black uppercase text-slate-500'>
-                  Price
+                <th className='p-4 text-[9px] font-black uppercase text-slate-400 tracking-widest'>
+                  Rate
                 </th>
-                <th className='p-6 text-[10px] font-black uppercase text-slate-500 text-right'>
-                  Actions
+                <th className='p-4 text-[9px] font-black uppercase text-slate-400 tracking-widest text-right'>
+                  Op
                 </th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-slate-100'>
+            <tbody className='divide-y divide-slate-50'>
               {products.length > 0
                 ? products.map((item) => (
                     <tr
                       key={item.id}
-                      className='group hover:bg-orange-50/30 transition-colors'
+                      className='group hover:bg-slate-50/50 transition-colors'
                     >
-                      <td className='p-6'>
-                        <div className='flex items-center gap-4'>
-                          <div className='w-14 h-14 rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0'>
+                      <td className='p-4'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-10 h-10 rounded-lg bg-slate-100 overflow-hidden border border-slate-100 shrink-0'>
                             <img
                               src={getImageUrl(
                                 item.primary_image || item.image_url,
                               )}
                               alt={item.name}
-                              className='w-full h-full object-cover'
+                              className='w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all'
                             />
                           </div>
                           <div>
-                            <p className='font-black text-slate-900 text-sm leading-tight'>
+                            <p className='font-black text-slate-900 text-[11px] uppercase tracking-tighter leading-none'>
                               {item.name}
                             </p>
-                            <p className='text-[10px] text-slate-500 font-mono mt-0.5'>
-                              {item.sku || '—'}
+                            <p className='text-[8px] text-slate-400 font-mono mt-1'>
+                              {item.sku || 'NO-SKU'}
                             </p>
-                            <span className='mt-1.5 inline-block px-2.5 py-0.5 bg-slate-100 rounded-full text-[9px] font-bold uppercase text-slate-600'>
-                              {item.category?.name || 'No category'}
-                            </span>
                           </div>
                         </div>
                       </td>
-                      <td className='p-6'>
-                        <span
-                          className={cn(
-                            'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight',
-                            item.quantity > 0
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800',
-                          )}
-                        >
-                          {item.quantity} In Stock
-                        </span>
+                      <td className='p-4'>
+                        {item.quantity === 0 ? (
+                          <span className='px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter bg-red-50 text-red-600'>
+                            Out of Stock
+                          </span>
+                        ) : item.quantity <= 5 ? (
+                          <div className='flex flex-col'>
+                            <span className='px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter bg-amber-50 text-amber-600 w-fit'>
+                              Few Remaining
+                            </span>
+                            <span className='text-[7px] font-bold text-amber-400 uppercase mt-1 px-2'>
+                              {item.quantity} Units Left
+                            </span>
+                          </div>
+                        ) : (
+                          <div className='flex flex-col'>
+                            <span className='px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter bg-emerald-50 text-emerald-600 w-fit'>
+                              Available
+                            </span>
+                            <span className='text-[7px] font-bold text-emerald-400 uppercase mt-1 px-2'>
+                              {item.quantity} In Stock
+                            </span>
+                          </div>
+                        )}
                       </td>
-                      <td className='p-6'>
-                        <p className='font-black text-slate-900 text-base'>
+                      <td className='p-4'>
+                        <p className='font-black text-slate-900 text-xs'>
                           {item.formatted_price ||
                             `₦${Number(item.price).toLocaleString()}`}
                         </p>
                       </td>
-                      <td className='p-6 text-right'>
+                      <td className='p-4 text-right'>
                         <button
                           onClick={() => handleDelete(item.id)}
                           disabled={deleteLoading === item.id}
-                          className='text-slate-300 hover:text-red-600 p-2 transition-colors'
+                          className='text-slate-300 hover:text-red-500 p-2 transition-colors'
                         >
                           {deleteLoading === item.id ? (
-                            <Loader2 className='animate-spin' size={18} />
+                            <Loader2 size={14} className='animate-spin' />
                           ) : (
-                            <Trash2 size={18} />
+                            <Trash2 size={14} />
                           )}
                         </button>
                       </td>
@@ -319,21 +345,17 @@ export default function MyGymInventory() {
                   ))
                 : !loading && (
                     <tr>
-                      <td colSpan={4} className='p-24 text-center'>
-                        <Dumbbell
-                          className='mx-auto text-slate-100 mb-6'
-                          size={80}
-                          strokeWidth={1}
-                        />
-                        <p className='text-slate-400 font-black uppercase text-xs tracking-widest'>
-                          Your inventory is currently empty
-                        </p>
-                        <Link
-                          href='/vendor/products/add'
-                          className='text-orange-500 text-[10px] font-bold uppercase mt-4 inline-block hover:underline'
-                        >
-                          Click here to add your first piece of gear
-                        </Link>
+                      <td colSpan={4} className='py-20 text-center'>
+                        <div className='flex flex-col items-center opacity-40'>
+                          <Dumbbell
+                            className='mb-4 text-slate-300'
+                            size={40}
+                            strokeWidth={1}
+                          />
+                          <p className='text-[10px] font-black uppercase tracking-[0.2em]'>
+                            Warehouse Empty
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -341,26 +363,26 @@ export default function MyGymInventory() {
           </table>
         </div>
 
-        {/* PAGINATION */}
+        {/* Pagination */}
         {lastPage > 1 && (
-          <div className='p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between'>
-            <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>
-              Page {currentPage} of {lastPage}
-            </p>
-            <div className='flex gap-2'>
+          <div className='p-4 border-t border-slate-50 flex items-center justify-between bg-white'>
+            <span className='text-[8px] font-black text-slate-400 uppercase'>
+              Page {currentPage}/{lastPage}
+            </span>
+            <div className='flex gap-1'>
               <button
                 disabled={currentPage === 1 || loading}
                 onClick={() => setCurrentPage((prev) => prev - 1)}
-                className='p-3 bg-white border-2 border-slate-200 rounded-xl hover:border-orange-500 disabled:opacity-30 transition-all'
+                className='p-2 bg-slate-50 rounded-lg hover:bg-orange-500 hover:text-white disabled:opacity-20 transition-all'
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={14} />
               </button>
               <button
                 disabled={currentPage === lastPage || loading}
                 onClick={() => setCurrentPage((prev) => prev + 1)}
-                className='p-3 bg-white border-2 border-slate-200 rounded-xl hover:border-orange-500 disabled:opacity-30 transition-all'
+                className='p-2 bg-slate-50 rounded-lg hover:bg-orange-500 hover:text-white disabled:opacity-20 transition-all'
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>

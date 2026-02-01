@@ -12,12 +12,14 @@ import {
   Hash,
   CheckCircle2,
   Package,
-  Type,
   Weight,
-  Ruler,
+  Cpu,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { createProduct } from './actions'
+import { cn } from '@/app/lib/utils'
 
 interface Category {
   id: number
@@ -33,7 +35,11 @@ export default function AddProductPage() {
   const [preview, setPreview] = useState<string | null>(null)
   const [vendorId, setVendorId] = useState<string>('')
 
-  // 1. Load Vendor Session & Categories
+  // New state for section selection
+  const [productTier, setProductTier] = useState<
+    'smaller' | 'moderate' | 'pro'
+  >('moderate')
+
   useEffect(() => {
     const userString = localStorage.getItem('user')
     if (userString) {
@@ -65,7 +71,6 @@ export default function AddProductPage() {
     fetchCats()
   }, [])
 
-  // 2. Redirect on Success
   useEffect(() => {
     if (state?.success) {
       const timer = setTimeout(() => {
@@ -84,7 +89,7 @@ export default function AddProductPage() {
 
   return (
     <div className='p-6 md:p-10 max-w-5xl mx-auto relative min-h-screen bg-slate-50/50'>
-      {/* ERROR MESSAGE */}
+      {/* Messages */}
       {state?.error && (
         <div className='mb-6 p-4 bg-white border-l-8 border-red-500 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center gap-4 shadow-xl animate-in slide-in-from-top-4'>
           <div className='bg-red-500 text-white rounded-full p-1.5 shrink-0'>
@@ -94,7 +99,6 @@ export default function AddProductPage() {
         </div>
       )}
 
-      {/* SUCCESS MESSAGE */}
       {state?.success && (
         <div className='mb-6 p-5 bg-green-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-between shadow-2xl animate-in zoom-in-95 duration-300'>
           <div className='flex items-center gap-3'>
@@ -113,8 +117,8 @@ export default function AddProductPage() {
       </Link>
 
       <div className='mb-10'>
-        <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter'>
-          Register<span className='text-orange-500'>.</span>Products
+        <h1 className='text-5xl font-black text-slate-900 italic uppercase tracking-tighter leading-tight'>
+          Register<span className='text-orange-500'>.</span>Gear
         </h1>
         <p className='text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mt-2'>
           Authorized Vendor ID:{' '}
@@ -124,10 +128,34 @@ export default function AddProductPage() {
         </p>
       </div>
 
+      {/* Tier Selection Toggles */}
+      <div className='grid grid-cols-3 gap-3 mb-6'>
+        {[
+          { id: 'smaller', label: 'Smaller', icon: Zap },
+          { id: 'moderate', label: 'Moderate', icon: Cpu },
+          { id: 'pro', label: 'Pro Gear', icon: ShieldCheck },
+        ].map((tier) => (
+          <button
+            key={tier.id}
+            type='button'
+            onClick={() => setProductTier(tier.id as any)}
+            className={cn(
+              'flex items-center justify-center gap-2 py-4 rounded-2xl border-2 transition-all font-black text-[10px] uppercase tracking-widest',
+              productTier === tier.id
+                ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
+                : 'bg-white border-slate-100 text-slate-400 hover:border-orange-500/50',
+            )}
+          >
+            <tier.icon size={14} />
+            {tier.label}
+          </button>
+        ))}
+      </div>
+
       <form
         action={async (formData) => {
-          // Explicitly append the vendor_id from state to the form before it leaves for the server
           formData.set('vendor_id', vendorId)
+          formData.set('tier_type', productTier) // Passing the selected section
           await formAction(formData)
         }}
         className='bg-white rounded-[40px] border-4 border-slate-100 shadow-2xl p-8 md:p-12 space-y-8'
@@ -154,7 +182,7 @@ export default function AddProductPage() {
                 <div className='flex flex-col items-center text-slate-300 group-hover:text-orange-500 transition-colors'>
                   <Upload size={48} strokeWidth={3} />
                   <span className='text-[9px] font-black uppercase mt-4 tracking-[0.2em]'>
-                    Add Product Image
+                    Upload Image
                   </span>
                 </div>
               )}
@@ -290,7 +318,6 @@ export default function AddProductPage() {
           </div>
         </div>
 
-        {/* DESCRIPTION */}
         <div className='space-y-2'>
           <label className='text-[10px] font-black uppercase text-slate-400 ml-2'>
             Product Description
@@ -312,7 +339,7 @@ export default function AddProductPage() {
           {isPending ? (
             <Loader2 className='animate-spin' size={24} />
           ) : (
-            'Add Product'
+            `Finalize ${productTier.toUpperCase()} Upload`
           )}
         </button>
       </form>

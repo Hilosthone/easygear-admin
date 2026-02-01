@@ -1,332 +1,339 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  CheckCircle,
-  XCircle,
-  Store,
-  AlertCircle,
-  Search,
-  Filter,
-  Package,
-  ArrowUpRight,
-  ShieldAlert,
-  BadgeCheck,
-  Loader2,
-  KeyRound,
+  Boxes,
+  ChevronRight,
+  Mail,
   Eye,
   EyeOff,
-  LucideIcon,
+  ArrowLeft,
+  RefreshCcw,
+  UserCircle,
+  Phone,
+  MapPin,
+  AtSign,
+  Tag,
+  Terminal,
+  Search,
 } from 'lucide-react'
-import { cn } from '@/app/lib/utils'
-
-interface Vendor {
-  id: string
-  name: string
-  owner: string
-  email: string
-  password?: string
-  status: 'Approved' | 'Pending' | 'Flagged' | 'Suspended'
-}
-
-const MOCK_VENDORS: Vendor[] = [
-  {
-    id: '101',
-    name: 'Titan Fitness',
-    owner: 'John Doe',
-    email: 'john@titan.fit',
-    password: 'password123',
-    status: 'Approved',
-  },
-  {
-    id: '102',
-    name: 'Apex Gear',
-    owner: 'Sarah Chen',
-    email: 'sarah@apex.io',
-    password: 'secure_pass',
-    status: 'Pending',
-  },
-  {
-    id: '103',
-    name: 'Rogue Supply',
-    owner: 'Mike Ross',
-    email: 'mike@rogue.com',
-    password: 'rogue_vault',
-    status: 'Flagged',
-  },
-  {
-    id: '104',
-    name: 'Velocity Sports',
-    owner: 'Emma Wilson',
-    email: 'emma@velocity.net',
-    password: 'vel_2024_auth',
-    status: 'Approved',
-  },
-]
 
 export default function VendorManagementPage() {
+  const [vendors, setVendors] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('All')
-  const [vendors] = useState<Vendor[]>(MOCK_VENDORS)
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>(
-    {}
-  )
+  const [rawLog, setRawLog] = useState<string>('System initialized...')
 
-  const togglePassword = (id: string) => {
-    setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }))
+  const API_URL = 'https://api.easygear.ng/api/v1'
+
+  const logger = (msg: string, data?: any) => {
+    console.log(`[DEBUG] ${msg}`, data || '')
+    setRawLog((prev) => `> ${msg}\n${prev}`.slice(0, 500))
   }
 
-  const filteredVendors = vendors.filter((v) => {
-    const matchesSearch = v.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'All' || v.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    logger('Syncing Registry Database...')
+    try {
+      const pRes = await fetch(`${API_URL}/products`)
+      const pJson = await pRes.json()
+      const allProducts = pJson.data?.data || pJson.data || []
+      setProducts(allProducts)
+
+      const vendorMap = new Map()
+      allProducts.forEach((p: any) => {
+        if (!vendorMap.has(p.vendor_id)) {
+          vendorMap.set(p.vendor_id, {
+            id: p.vendor_id,
+            name: p.vendor_name || `Merchant #${p.vendor_id}`,
+            email: p.vendor_email || 'contact@easygear.ng',
+            store_name: p.vendor_name || 'EasyGear Store',
+          })
+        }
+      })
+      setVendors(Array.from(vendorMap.values()))
+      logger(`Live: ${allProducts.length} items / ${vendorMap.size} vendors.`)
+    } catch (err) {
+      logger('CRITICAL SYNC ERROR', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const viewMerchantDetail = async (vendor: any) => {
+    setLoading(true)
+    logger(`Opening Dossier: ${vendor.id}...`)
+    try {
+      const res = await fetch(`${API_URL}/vendor/profile/${vendor.id}`)
+      const json = await res.json()
+      const profile = json.data || json.vendor || json || {}
+
+      setSelectedVendor({
+        ...vendor,
+        fullname:
+          profile.name ||
+          profile.fullname ||
+          profile.business_name ||
+          vendor.name,
+        username:
+          profile.username ||
+          profile.user_name ||
+          vendor.name?.toLowerCase().replace(/\s/g, '_'),
+        email: profile.email || profile.contact_email || vendor.email,
+        phone: profile.phone_number || profile.phone || 'Not Set',
+        address: profile.business_address || profile.address || 'Not Set',
+        store_name: profile.business_name || vendor.store_name,
+        password_raw:
+          profile.password_plain || profile.temp_password || '••••••••',
+        products: products.filter((p) => p.vendor_id === vendor.id),
+      })
+    } catch (err) {
+      logger('API Offline - Using Fallback', err)
+      setSelectedVendor({
+        ...vendor,
+        products: products.filter((p) => p.vendor_id === vendor.id),
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredVendors = useMemo(() => {
+    return vendors.filter(
+      (v) =>
+        v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.id.toString().includes(searchTerm),
+    )
+  }, [vendors, searchTerm])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   return (
-    <div className='max-w-350 mx-auto space-y-10 pb-20 px-6'>
-      {/* Header & Controls */}
-      <div className='flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6'>
-        <div className='space-y-2'>
-          <h1 className='text-4xl font-black tracking-tighter uppercase italic text-slate-900'>
-            Nexus / Vendors
-          </h1>
-          <p className='text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase'>
-            Entity Control Terminal
-          </p>
-        </div>
-
-        <div className='flex flex-wrap items-center gap-4'>
-          {/* Status Filter */}
-          <div className='relative'>
-            <Filter
-              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400'
-              size={16}
-            />
-            <select
-              className='pl-10 pr-8 py-4 bg-white border-4 border-slate-100 rounded-2xl font-black text-[10px] tracking-widest appearance-none focus:outline-none focus:border-blue-600 cursor-pointer'
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value='All'>ALL STATUSES</option>
-              <option value='Pending'>PENDING ONLY</option>
-              <option value='Approved'>APPROVED ONLY</option>
-              <option value='Flagged'>FLAGGED ONLY</option>
-            </select>
+    <div className='max-w-6xl mx-auto py-4 md:py-8 px-4 md:px-6 font-sans text-slate-900'>
+      {/* COMPACT DEBUGGER - Hidden on Mobile */}
+      <div className='fixed bottom-4 right-4 z-50 w-64 bg-slate-900/95 backdrop-blur rounded-xl border border-slate-700 shadow-xl hidden lg:block'>
+        <div className='bg-slate-800/50 px-3 py-1.5 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest'>
+          <div className='flex items-center gap-1.5'>
+            <Terminal size={10} /> Registry Logs
           </div>
-
-          {/* Search Input */}
-          <div className='relative group'>
-            <Search
-              className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors'
-              size={18}
-            />
-            <input
-              type='text'
-              placeholder='FILTER BY STORE NAME...'
-              className='pl-12 pr-6 py-4 bg-white border-4 border-slate-100 rounded-2xl w-80 font-black text-[10px] tracking-widest focus:outline-none focus:border-blue-600 transition-all'
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <div
+            className={`w-2 h-2 rounded-full ${loading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}
+          ></div>
         </div>
+        <pre className='p-3 text-[9px] text-green-400 font-mono h-32 overflow-y-auto leading-tight'>
+          {rawLog}
+        </pre>
       </div>
 
-      {/* Stats Section */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-        <StatCard
-          label='Pending Approval'
-          value={vendors.filter((v) => v.status === 'Pending').length}
-          color='orange'
-          Icon={AlertCircle}
-        />
-        <StatCard
-          label='Verified Merchants'
-          value={vendors.filter((v) => v.status === 'Approved').length}
-          color='blue'
-          Icon={BadgeCheck}
-        />
-        <StatCard
-          label='Risk Flags'
-          value={vendors.filter((v) => v.status === 'Flagged').length}
-          color='red'
-          Icon={ShieldAlert}
-        />
-        <StatCard
-          label='Total Entities'
-          value={vendors.length}
-          color='slate'
-          Icon={Package}
-        />
-      </div>
+      {!selectedVendor ? (
+        <div className='animate-in fade-in duration-500'>
+          <div className='flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6 md:mb-10'>
+            <div>
+              <h1 className='text-3xl md:text-4xl font-black tracking-tight uppercase italic leading-none'>
+                Registry<span className='text-blue-500'>.</span>
+              </h1>
+              <p className='text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] mt-1'>
+                Merchant Access Control
+              </p>
+            </div>
 
-      {/* Table Container - Custom 3rem corners applied here */}
-      <div className='bg-white border-4 border-slate-100 rounded-5xl shadow-sm overflow-hidden'>
-        <div className='overflow-x-auto'>
-          <table className='w-full text-left border-collapse'>
-            <thead>
-              <tr className='bg-slate-50/50 border-b-4 border-slate-100'>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
-                  Store Hierarchy
-                </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
-                  Access Credentials
-                </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400'>
-                  Compliance
-                </th>
-                <th className='px-10 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-right'>
-                  Action Node
-                </th>
-              </tr>
-            </thead>
-            <tbody className='divide-y-4 divide-slate-50'>
-              {filteredVendors.length > 0 ? (
-                filteredVendors.map((vendor) => (
-                  <tr
-                    key={vendor.id}
-                    className='hover:bg-slate-50/80 transition-all group'
-                  >
-                    <td className='px-10 py-8'>
-                      <div className='flex items-center gap-5'>
-                        <div className='w-14 h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-all'>
-                          <Store size={24} strokeWidth={1.5} />
-                        </div>
-                        <div>
-                          <p className='font-black text-slate-900 text-lg uppercase tracking-tighter leading-none'>
-                            {vendor.name}
-                          </p>
-                          <p className='text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest'>
-                            ID: V-{vendor.id} • {vendor.owner}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className='px-10 py-8'>
-                      <div className='flex flex-col gap-2'>
-                        <div className='flex items-center gap-2'>
-                          <KeyRound size={12} className='text-blue-500' />
-                          <span className='font-mono text-[10px] font-bold tracking-widest bg-slate-100 px-2 py-1 rounded'>
-                            {showPasswords[vendor.id]
-                              ? vendor.password
-                              : '••••••••••••'}
-                          </span>
-                          <button
-                            onClick={() => togglePassword(vendor.id)}
-                            className='text-slate-400 hover:text-blue-600 transition-colors'
-                          >
-                            {showPasswords[vendor.id] ? (
-                              <EyeOff size={14} />
-                            ) : (
-                              <Eye size={14} />
-                            )}
-                          </button>
-                        </div>
-                        <p className='text-[10px] font-black text-slate-900 uppercase tracking-tight'>
-                          {vendor.email}
-                        </p>
-                      </div>
-                    </td>
-                    <td className='px-10 py-8'>
-                      <StatusBadge status={vendor.status} />
-                    </td>
-                    <td className='px-10 py-8 text-right'>
-                      <div className='flex items-center justify-end gap-3'>
-                        {vendor.status === 'Pending' ? (
-                          <div className='flex gap-2'>
-                            <button className='p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all border-2 border-emerald-100'>
-                              <CheckCircle size={20} />
-                            </button>
-                            <button className='p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all border-2 border-red-100'>
-                              <XCircle size={20} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button className='px-5 py-3 bg-slate-900 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 transition-all'>
-                            Profile{' '}
-                            <ArrowUpRight size={14} className='inline ml-1' />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className='px-10 py-20 text-center'>
-                    <p className='font-black text-slate-300 text-[10px] uppercase tracking-[0.5em]'>
-                      No entities match your filter
+            <div className='flex items-center gap-2 w-full md:w-auto'>
+              <div className='relative flex-1 md:w-56'>
+                <Search
+                  className='absolute left-3 top-1/2 -translate-y-1/2 text-slate-400'
+                  size={12}
+                />
+                <input
+                  type='text'
+                  placeholder='SEARCH...'
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className='w-full bg-slate-100 border-none rounded-full py-2 pl-9 pr-4 text-[10px] font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none'
+                />
+              </div>
+              <button
+                onClick={fetchData}
+                className='p-2 bg-black text-white rounded-full hover:bg-blue-500 transition-all'
+              >
+                <RefreshCcw
+                  className={loading ? 'animate-spin' : ''}
+                  size={14}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5'>
+            {filteredVendors.map((v) => (
+              <div
+                key={v.id}
+                onClick={() => viewMerchantDetail(v)}
+                className='group bg-white border border-slate-200 p-4 md:p-6 rounded-xl md:rounded-2xl hover:border-black transition-all cursor-pointer'
+              >
+                <div className='flex items-center justify-between mb-3'>
+                  <div className='p-1.5 bg-slate-50 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors'>
+                    <UserCircle size={20} />
+                  </div>
+                  <span className='text-[8px] font-black px-1.5 py-0.5 bg-black text-white rounded uppercase'>
+                    ID: {v.id}
+                  </span>
+                </div>
+                <h3 className='text-lg font-bold uppercase truncate'>
+                  {v.name}
+                </h3>
+                <div className='mt-4 pt-3 border-t border-slate-50 flex justify-between items-center'>
+                  <div className='flex items-center gap-1.5 text-slate-400 font-bold text-[9px] uppercase'>
+                    <Boxes size={12} className='text-blue-500' />
+                    {products.filter((p) => p.vendor_id === v.id).length} Units
+                  </div>
+                  <ChevronRight
+                    size={12}
+                    className='group-hover:translate-x-1 transition-transform text-slate-300'
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className='animate-in slide-in-from-right-2 duration-500'>
+          <button
+            onClick={() => setSelectedVendor(null)}
+            className='flex items-center gap-2 text-slate-400 hover:text-black font-bold text-[9px] uppercase mb-4 transition-colors'
+          >
+            <ArrowLeft size={10} strokeWidth={3} /> Return to list
+          </button>
+
+          <div className='bg-white border border-slate-200 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm mb-6'>
+            <div className='bg-slate-900 p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4'>
+              <div>
+                <p className='text-blue-500 font-black text-[8px] uppercase tracking-[0.3em] mb-1'>
+                  Authorized Profile
+                </p>
+                <h1 className='text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none'>
+                  {selectedVendor.fullname}
+                </h1>
+              </div>
+              <div className='bg-white/10 backdrop-blur px-4 py-2 md:px-6 md:py-4 rounded-xl border border-white/10 w-full md:w-auto text-center md:text-left'>
+                <p className='text-[8px] font-black text-slate-400 uppercase mb-0.5'>
+                  Stock Volume
+                </p>
+                <div className='text-xl md:text-2xl font-black text-blue-500'>
+                  {selectedVendor.products.length}{' '}
+                  <span className='text-[10px] text-white font-bold opacity-50'>
+                    SKUs
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className='p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8'>
+              <div className='space-y-4'>
+                <DetailItem
+                  label='Username'
+                  value={`@${selectedVendor.username}`}
+                  icon={AtSign}
+                />
+                <DetailItem
+                  label='Email'
+                  value={selectedVendor.email}
+                  icon={Mail}
+                />
+              </div>
+              <div className='space-y-4'>
+                <DetailItem
+                  label='Phone'
+                  value={selectedVendor.phone}
+                  icon={Phone}
+                />
+                <DetailItem
+                  label='Location'
+                  value={selectedVendor.address}
+                  icon={MapPin}
+                />
+              </div>
+              <div className='space-y-4'>
+                <DetailItem
+                  label='Store'
+                  value={selectedVendor.store_name}
+                  icon={Tag}
+                />
+                <div className='bg-slate-50 p-3 rounded-lg border border-slate-100'>
+                  <div className='flex items-center justify-between mb-0.5'>
+                    <p className='text-[8px] font-black text-slate-400 uppercase'>
+                      Master Key
                     </p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    <button
+                      onClick={() => setShowPassword(!showPassword)}
+                      className='text-slate-400'
+                    >
+                      <Eye size={10} />
+                    </button>
+                  </div>
+                  <span className='font-mono text-xs font-bold'>
+                    {showPassword
+                      ? selectedVendor.password_raw
+                      : '••••••••••••'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-4'>
+            {selectedVendor.products.map((p: any) => (
+              <div
+                key={p.id}
+                className='group bg-white border border-slate-100 p-2 md:p-3 rounded-xl hover:border-blue-500 transition-all'
+              >
+                <div className='aspect-square rounded-lg bg-slate-50 mb-2 overflow-hidden relative'>
+                  <img
+                    src={p.primary_image}
+                    className='w-full h-full object-cover group-hover:scale-105 transition-transform'
+                  />
+                  <div className='absolute bottom-1 right-1 bg-black/80 text-white text-[7px] font-black px-1.5 py-0.5 rounded'>
+                    QTY: {p.quantity || 0}
+                  </div>
+                </div>
+                <p className='font-black text-[9px] uppercase truncate tracking-tight mb-1'>
+                  {p.name}
+                </p>
+                <div className='flex justify-between items-center'>
+                  <p className='text-blue-600 font-black text-[10px]'>
+                    {p.formatted_price || `₦${p.price}`}
+                  </p>
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${p.quantity > 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
-function StatCard({ label, value, color, Icon }: StatCardProps) {
-  const colors = {
-    orange: 'bg-orange-50 border-orange-100 text-orange-600',
-    blue: 'bg-blue-50 border-blue-100 text-blue-600',
-    red: 'bg-red-50 border-red-100 text-red-600',
-    slate: 'bg-slate-50 border-slate-100 text-slate-900',
-  }
-  const iconBgs = {
-    orange: 'bg-orange-500',
-    blue: 'bg-blue-600',
-    red: 'bg-red-500',
-    slate: 'bg-slate-900',
-  }
-
+function DetailItem({ label, value, icon: Icon }: any) {
   return (
-    <div
-      className={cn(
-        'border-4 p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm transition-all hover:-translate-y-1',
-        colors[color]
-      )}
-    >
-      <div
-        className={cn('p-4 rounded-2xl text-white shadow-lg', iconBgs[color])}
-      >
-        <Icon size={24} strokeWidth={2.5} />
+    <div className='flex gap-2.5 items-center'>
+      <div className='p-1.5 bg-slate-50 text-slate-400 rounded-md'>
+        <Icon size={12} />
       </div>
-      <div>
-        <p className='text-[10px] font-black uppercase tracking-[0.3em] opacity-60'>
+      <div className='min-w-0'>
+        <p className='text-[8px] font-black text-slate-400 uppercase tracking-widest'>
           {label}
         </p>
-        <p className='text-3xl font-black tracking-tighter mt-1 italic'>
-          {value.toString().padStart(2, '0')}
+        <p className='text-xs font-bold text-slate-800 truncate'>
+          {value || '---'}
         </p>
       </div>
     </div>
   )
-}
-
-function StatusBadge({ status }: { status: Vendor['status'] }) {
-  const styles: Record<string, string> = {
-    Approved: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    Pending: 'bg-orange-50 text-orange-600 border-orange-100',
-    Flagged: 'bg-red-50 text-red-600 border-red-100 animate-pulse',
-    Suspended: 'bg-slate-100 text-slate-400 border-slate-200',
-  }
-  return (
-    <span
-      className={cn(
-        'px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2',
-        styles[status] || styles.Suspended
-      )}
-    >
-      {status}
-    </span>
-  )
-}
-
-interface StatCardProps {
-  label: string
-  value: number | string
-  color: 'orange' | 'blue' | 'red' | 'slate'
-  Icon: LucideIcon
 }
